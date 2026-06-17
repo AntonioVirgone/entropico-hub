@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Entropico Hub
 
-## Getting Started
+Dashboard personale per gestire i progetti e le relative todolist (board Kanban).
+Operatore singolo, **nessuna autenticazione** in questa versione.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Supabase (Postgres) · Vercel.
+
+## Funzionalità
+
+- Dashboard con elenco progetti (nome, descrizione, colore, stato attivo/archiviato, avanzamento task).
+- Creazione / modifica / archiviazione / eliminazione progetti.
+- Board Kanban per progetto con 3 colonne: **Da fare → In corso → Fatto**.
+- Task con titolo, descrizione, note e priorità (Bassa / Media / Alta).
+- Spostamento dei task tra colonne con i pulsanti freccia.
+
+---
+
+## 1. Setup Supabase
+
+1. Crea un progetto su [supabase.com](https://supabase.com).
+2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS.
+3. Recupera le chiavi:
+   - **URL**: Project Settings → *Data API* → Project URL.
+   - **anon key**: Project Settings → *API Keys* → chiave `anon` / `public`.
+
+> ⚠️ **Sicurezza**: in questa v1 l'accesso è aperto — la anon key può leggere/scrivere tutti i dati e non c'è login. Tieni l'URL dell'app riservato. Quando aggiungerai le utenze, sostituisci le policy RLS in `schema.sql` con regole basate su `auth.uid()`.
+
+## 2. Sviluppo in locale
 
 ```bash
+npm install
+cp .env.example .env.local   # poi inserisci URL e anon key
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App su [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Variabili d'ambiente (`.env.local`):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
 
-## Learn More
+## 3. Deploy su Vercel
 
-To learn more about Next.js, take a look at the following resources:
+1. Importa il repository GitHub `AntonioVirgone/entropico-hub` su [vercel.com](https://vercel.com).
+2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Production + Preview).
+3. Deploy. Vercel rileva Next.js automaticamente (nessuna configurazione extra).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Struttura
 
-## Deploy on Vercel
+```
+src/
+  app/
+    page.tsx                  # dashboard progetti
+    projects/[id]/page.tsx    # board Kanban del progetto
+    layout.tsx, globals.css
+  components/
+    ui/                       # primitive shadcn/ui
+    project-card.tsx, project-dialog.tsx
+    task-card.tsx, task-dialog.tsx, kanban-board.tsx
+  lib/
+    supabase.ts               # client (anon key, lazy)
+    queries.ts                # letture
+    actions.ts                # Server Actions (mutazioni)
+    types.ts                  # tipi e costanti
+supabase/
+  schema.sql                  # schema DB da eseguire su Supabase
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Idee per le prossime versioni
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Autenticazione (Supabase Auth) e policy RLS per utente.
+- Drag & drop dei task tra colonne.
+- Scadenze, etichette, ricerca/filtri.
+- Realtime (Supabase Realtime) per aggiornamenti live.
