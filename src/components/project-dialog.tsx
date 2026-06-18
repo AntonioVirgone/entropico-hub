@@ -4,7 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { createProject, updateProject } from "@/lib/actions";
-import { PROJECT_COLORS, type Project } from "@/lib/types";
+import {
+  FRAMEWORK_OPTIONS,
+  LANGUAGE_OPTIONS,
+  PROJECT_COLORS,
+  TECHNOLOGY_OPTIONS,
+  TOOL_OPTIONS,
+  type Project,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TechMultiSelect } from "@/components/tech-multi-select";
 
 export function ProjectDialog({
   trigger,
@@ -33,6 +41,10 @@ export function ProjectDialog({
   const [color, setColor] = useState<string>(
     project?.color ?? PROJECT_COLORS[5]
   );
+  const [technologies, setTechnologies] = useState<string[]>(
+    project?.technologies ?? []
+  );
+  const [tools, setTools] = useState<string[]>(project?.tools ?? []);
   const [pending, setPending] = useState(false);
 
   async function handleAction(formData: FormData) {
@@ -55,11 +67,15 @@ export function ProjectDialog({
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) setColor(project?.color ?? PROJECT_COLORS[5]);
+        if (o) {
+          setColor(project?.color ?? PROJECT_COLORS[5]);
+          setTechnologies(project?.technologies ?? []);
+          setTools(project?.tools ?? []);
+        }
       }}
     >
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Modifica progetto" : "Nuovo progetto"}
@@ -112,6 +128,59 @@ export function ProjectDialog({
               ))}
             </div>
           </div>
+
+          {/* ── Metadati tecnici ── */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="framework">Framework</Label>
+              <Input
+                id="framework"
+                name="framework"
+                list="framework-options"
+                defaultValue={project?.framework ?? ""}
+                placeholder="Es. Next.js"
+              />
+              <datalist id="framework-options">
+                {FRAMEWORK_OPTIONS.map((f) => (
+                  <option key={f} value={f} />
+                ))}
+              </datalist>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="language">Linguaggio</Label>
+              <Input
+                id="language"
+                name="language"
+                list="language-options"
+                defaultValue={project?.language ?? ""}
+                placeholder="Es. TypeScript"
+              />
+              <datalist id="language-options">
+                {LANGUAGE_OPTIONS.map((l) => (
+                  <option key={l} value={l} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          <TechMultiSelect
+            name="technologies"
+            label="Tecnologie connesse"
+            options={TECHNOLOGY_OPTIONS}
+            value={technologies}
+            onChange={setTechnologies}
+            placeholder="Aggiungi una tecnologia…"
+          />
+
+          <TechMultiSelect
+            name="tools"
+            label="Strumenti"
+            options={TOOL_OPTIONS}
+            value={tools}
+            onChange={setTools}
+            placeholder="Aggiungi uno strumento…"
+          />
+
           <DialogFooter>
             <Button type="submit" disabled={pending}>
               {pending ? "Salvataggio…" : isEdit ? "Salva" : "Crea progetto"}
