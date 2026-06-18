@@ -72,25 +72,47 @@ function parseCrossProjectIds(formData: FormData, primaryProjectId: string): str
     .filter((id) => id !== primaryProjectId);
 }
 
+/**
+ * Aggiorna i link cross-project di un task senza toccare lo status
+ * delle righe già esistenti — ogni progetto mantiene il proprio avanzamento.
+ */
 async function syncCrossProjects(
   taskId: string,
   primaryProjectId: string,
-  crossProjectIds: string[]
+  newCrossProjectIds: string[]
 ) {
   const supabase = getSupabase();
 
-  // Rimuove tutti i link esistenti e li ricrea
-  await supabase.from("task_cross_projects").delete().eq("task_id", taskId);
+  // Link attuali (escluso il progetto principale che non va mai rimosso)
+  const { data: current } = await supabase
+    .from("task_cross_projects")
+    .select("project_id")
+    .eq("task_id", taskId)
+    .neq("project_id", primaryProjectId);
 
-  if (crossProjectIds.length === 0) return;
+  const currentIds = new Set((current ?? []).map((r) => r.project_id as string));
+  const newIds = new Set(newCrossProjectIds);
 
-  const rows = crossProjectIds.map((pid) => ({
-    task_id: taskId,
-    project_id: pid,
-  }));
+  // Rimuovi i link deselezionati
+  const toRemove = [...currentIds].filter((id) => !newIds.has(id));
+  if (toRemove.length > 0) {
+    await supabase
+      .from("task_cross_projects")
+      .delete()
+      .eq("task_id", taskId)
+      .in("project_id", toRemove);
+  }
 
-  const { error } = await supabase.from("task_cross_projects").insert(rows);
-  if (error) throw new Error(error.message);
+  // Aggiungi i nuovi link con status 'todo' iniziale
+  const toAdd = [...newIds].filter((id) => !currentIds.has(id));
+  if (toAdd.length > 0) {
+    const { error } = await supabase.from("task_cross_projects").insert(
+      toAdd.map((pid) => ({ task_id: taskId, project_id: pid, status: "todo" }))
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  return { added: toAdd, removed: toRemove };
 }
 
 export async function createTask(projectId: string, formData: FormData) {
@@ -103,16 +125,28 @@ export async function createTask(projectId: string, formData: FormData) {
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
 
+  // 1. Crea il task (senza status — lo status vive nella junction)
   const { data, error } = await getSupabase()
     .from("tasks")
-    .insert({ project_id: projectId, title, description, notes, priority, status: "todo", is_cross_functional: isCross })
+    .insert({ project_id: projectId, title, description, notes, priority, is_cross_functional: isCross })
     .select("id")
     .single();
 
   if (error) throw new Error(error.message);
 
+  // 2. Inserisci la riga principale nella junction (progetto corrente, status 'todo')
+  const { error: jErr } = await getSupabase()
+    .from("task_cross_projects")
+    .insert({ task_id: data.id, project_id: projectId, status: "todo" });
+
+  if (jErr) throw new Error(jErr.message);
+
+  // 3. Aggiungi i link cross-project selezionati
   if (crossProjectIds.length > 0) {
-    await syncCrossProjects(data.id, projectId, crossProjectIds);
+    const { error: cErr } = await getSupabase().from("task_cross_projects").insert(
+      crossProjectIds.map((pid) => ({ task_id: data.id, project_id: pid, status: "todo" }))
+    );
+    if (cErr) throw new Error(cErr.message);
     for (const pid of crossProjectIds) revalidatePath(`/projects/${pid}`);
   }
 
@@ -133,6 +167,7 @@ export async function updateTask(
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
 
+  // Aggiorna i campi del task (NON lo status — quello è nella junction)
   const { error } = await getSupabase()
     .from("tasks")
     .update({ title, description, notes, priority, is_cross_functional: isCross })
@@ -140,17 +175,10 @@ export async function updateTask(
 
   if (error) throw new Error(error.message);
 
-  // Recupera i vecchi cross-links per invalidare le cache dei progetti rimossi
-  const { data: oldLinks } = await getSupabase()
-    .from("task_cross_projects")
-    .select("project_id")
-    .eq("task_id", id);
+  // Sincronizza i link cross-project preservando gli status esistenti
+  const { added, removed } = await syncCrossProjects(id, projectId, crossProjectIds);
 
-  const oldIds = (oldLinks ?? []).map((l) => l.project_id as string);
-
-  await syncCrossProjects(id, projectId, crossProjectIds);
-
-  const allAffected = new Set([...oldIds, ...crossProjectIds]);
+  const allAffected = new Set([...added, ...removed]);
   for (const pid of allAffected) revalidatePath(`/projects/${pid}`);
 
   revalidatePath(`/projects/${projectId}`);
@@ -161,30 +189,25 @@ export async function moveTask(
   projectId: string,
   status: TaskStatus
 ) {
+  // Aggiorna lo status SOLO per questo progetto — gli altri restano invariati
   const { error } = await getSupabase()
-    .from("tasks")
+    .from("task_cross_projects")
     .update({ status })
-    .eq("id", id);
+    .eq("task_id", id)
+    .eq("project_id", projectId);
 
   if (error) throw new Error(error.message);
-
-  // Invalida anche i progetti cross-linked
-  const { data: links } = await getSupabase()
-    .from("task_cross_projects")
-    .select("project_id")
-    .eq("task_id", id);
-
-  for (const l of links ?? []) revalidatePath(`/projects/${l.project_id}`);
   revalidatePath(`/projects/${projectId}`);
 }
 
 export async function deleteTask(id: string, projectId: string) {
-  // Recupera cross-links prima di eliminare (ON DELETE CASCADE rimuoverà le righe)
+  // Recupera cross-links prima di eliminare per invalidare le cache
   const { data: links } = await getSupabase()
     .from("task_cross_projects")
     .select("project_id")
     .eq("task_id", id);
 
+  // ON DELETE CASCADE rimuove automaticamente le righe in task_cross_projects
   const { error } = await getSupabase().from("tasks").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
