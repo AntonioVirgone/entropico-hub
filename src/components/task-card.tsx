@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Bug,
   ChevronLeft,
   ChevronRight,
   GripVertical,
   Pencil,
   Share2,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 
@@ -124,12 +126,30 @@ export function TaskCard({
           >
             {task.title}
           </p>
-          <Badge
-            variant="secondary"
-            className={cn("shrink-0", PRIORITY_STYLES[task.priority])}
-          >
-            {priorityLabel}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1">
+            {/* Badge tipo: Bug visibile sempre, Feature solo se non "done" */}
+            {task.type === "bug" ? (
+              <Badge
+                variant="secondary"
+                className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 gap-1"
+              >
+                <Bug className="h-3 w-3" /> Bug
+              </Badge>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 gap-1"
+              >
+                <Sparkles className="h-3 w-3" /> Feature
+              </Badge>
+            )}
+            <Badge
+              variant="secondary"
+              className={cn(PRIORITY_STYLES[task.priority])}
+            >
+              {priorityLabel}
+            </Badge>
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 export type ProjectStatus = "active" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
+export type TaskType = "feature" | "bug";
 
 export interface Project {
   id: string;
@@ -19,6 +20,7 @@ export interface Task {
   description: string | null;
   notes: string | null;
   priority: TaskPriority;
+  type: TaskType;
   status: TaskStatus;
   position: number;
   is_cross_functional: boolean;
@@ -38,6 +40,11 @@ export const TASK_PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "low", label: "Bassa" },
   { value: "medium", label: "Media" },
   { value: "high", label: "Alta" },
+];
+
+export const TASK_TYPES: { value: TaskType; label: string }[] = [
+  { value: "feature", label: "Feature" },
+  { value: "bug", label: "Bug" },
 ];
 
 /** Vista denormalizzata usata nella tabella alta-priorità della home */

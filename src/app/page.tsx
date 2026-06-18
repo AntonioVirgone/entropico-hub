@@ -6,6 +6,7 @@ import { HighPriorityTasks } from "@/components/high-priority-tasks";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectDialog } from "@/components/project-dialog";
 import { StaleTasksAlert } from "@/components/stale-tasks-alert";
+import { TaskDialog } from "@/components/task-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,18 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Alert task scaduti (client component, si mostra solo se necessario) */}
       <StaleTasksAlert tasks={highPriorityTasks} />
+
+      {/* Tabella task alta priorità */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Alta priorità</h2>
+          <p className="text-sm text-muted-foreground">
+            Task con priorità alta non ancora completati in tutti i progetti.
+          </p>
+        </div>
+        <HighPriorityTasks tasks={highPriorityTasks} />
+      </section>
 
       {/* Header progetti */}
       <div className="flex items-center justify-between gap-4">
@@ -38,13 +49,24 @@ export default async function DashboardPage() {
             {archived.length > 0 && ` · ${archived.length} archiviati`}
           </p>
         </div>
-        <ProjectDialog
-          trigger={
-            <Button>
-              <Plus /> Nuovo progetto
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-2">
+          <TaskDialog
+            mode="home"
+            allProjects={projects}
+            trigger={
+              <Button variant="outline">
+                <Plus /> Nuovo task
+              </Button>
+            }
+          />
+          <ProjectDialog
+            trigger={
+              <Button>
+                <Plus /> Nuovo progetto
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       {/* Griglia progetti attivi */}
@@ -67,20 +89,6 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Tabella task alta priorità */}
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">
-            Alta priorità
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Task con priorità alta non ancora completati in tutti i progetti.
-          </p>
-        </div>
-        <HighPriorityTasks tasks={highPriorityTasks} />
-      </section>
-
-      {/* Sezione archiviati */}
       {archived.length > 0 && (
         <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSupabase } from "@/lib/supabase";
-import type { ProjectStatus, TaskPriority, TaskStatus } from "@/lib/types";
+import type { ProjectStatus, TaskPriority, TaskStatus, TaskType } from "@/lib/types";
 
 // ----------------------------------------------------------------
 // Projects
@@ -122,13 +122,14 @@ export async function createTask(projectId: string, formData: FormData) {
   const description = String(formData.get("description") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
+  const type = (String(formData.get("type") ?? "feature") || "feature") as TaskType;
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
 
   // 1. Crea il task (senza status — lo status vive nella junction)
   const { data, error } = await getSupabase()
     .from("tasks")
-    .insert({ project_id: projectId, title, description, notes, priority, is_cross_functional: isCross })
+    .insert({ project_id: projectId, title, description, notes, priority, type, is_cross_functional: isCross })
     .select("id")
     .single();
 
@@ -164,13 +165,14 @@ export async function updateTask(
   const description = String(formData.get("description") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
+  const type = (String(formData.get("type") ?? "feature") || "feature") as TaskType;
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
 
   // Aggiorna i campi del task (NON lo status — quello è nella junction)
   const { error } = await getSupabase()
     .from("tasks")
-    .update({ title, description, notes, priority, is_cross_functional: isCross })
+    .update({ title, description, notes, priority, type, is_cross_functional: isCross })
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -213,4 +215,50 @@ export async function deleteTask(id: string, projectId: string) {
 
   for (const l of links ?? []) revalidatePath(`/projects/${l.project_id}`);
   revalidatePath(`/projects/${projectId}`);
+}
+
+/**
+ * Crea un task dalla home senza un progetto primario pre-impostato.
+ * I project_ids vengono letti dal form: il primo diventa project_id (primario),
+ * gli altri diventano link cross-funzionali.
+ */
+export async function createTaskFromHome(formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+
+  const projectIds = formData.getAll("project_ids").map(String).filter(Boolean);
+  if (projectIds.length === 0) return;
+
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
+  const type = (String(formData.get("type") ?? "feature") || "feature") as TaskType;
+
+  const [primaryProjectId, ...crossProjectIds] = projectIds;
+  const isCross = crossProjectIds.length > 0;
+
+  const { data, error } = await getSupabase()
+    .from("tasks")
+    .insert({ project_id: primaryProjectId, title, description, notes, priority, type, is_cross_functional: isCross })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  // Riga primaria nella junction
+  const { error: jErr } = await getSupabase()
+    .from("task_cross_projects")
+    .insert({ task_id: data.id, project_id: primaryProjectId, status: "todo" });
+  if (jErr) throw new Error(jErr.message);
+
+  // Righe cross-project
+  if (crossProjectIds.length > 0) {
+    const { error: cErr } = await getSupabase()
+      .from("task_cross_projects")
+      .insert(crossProjectIds.map((pid) => ({ task_id: data.id, project_id: pid, status: "todo" })));
+    if (cErr) throw new Error(cErr.message);
+  }
+
+  for (const pid of projectIds) revalidatePath(`/projects/${pid}`);
+  revalidatePath("/");
 }
