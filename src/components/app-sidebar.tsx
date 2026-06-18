@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 
 import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
+import { signOut } from "@/lib/auth-actions";
 import { cn } from "@/lib/utils";
 
-export function AppSidebar() {
+export function AppSidebar({ userEmail }: { userEmail: string }) {
   const pathname = usePathname();
 
   return (
@@ -36,6 +38,20 @@ export function AppSidebar() {
           );
         })}
       </nav>
+      <div className="border-t p-3">
+        <p className="truncate px-3 pb-2 text-xs text-muted-foreground" title={userEmail}>
+          {userEmail}
+        </p>
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            Esci
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

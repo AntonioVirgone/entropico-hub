@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getSupabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   IdeaStatus,
   ProjectStatus,
@@ -39,7 +39,8 @@ export async function createProject(formData: FormData) {
   const technologies = parseList(formData, "technologies");
   const tools = parseList(formData, "tools");
 
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("projects")
     .insert({ name, description, color, framework, language, technologies, tools });
 
@@ -58,7 +59,8 @@ export async function updateProject(id: string, formData: FormData) {
   const technologies = parseList(formData, "technologies");
   const tools = parseList(formData, "tools");
 
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("projects")
     .update({ name, description, color, framework, language, technologies, tools })
     .eq("id", id);
@@ -69,7 +71,8 @@ export async function updateProject(id: string, formData: FormData) {
 }
 
 export async function setProjectStatus(id: string, status: ProjectStatus) {
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("projects")
     .update({ status })
     .eq("id", id);
@@ -80,7 +83,8 @@ export async function setProjectStatus(id: string, status: ProjectStatus) {
 }
 
 export async function deleteProject(id: string) {
-  const { error } = await getSupabase().from("projects").delete().eq("id", id);
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("projects").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/");
   redirect("/");
@@ -108,7 +112,7 @@ async function syncCrossProjects(
   primaryProjectId: string,
   newCrossProjectIds: string[]
 ) {
-  const supabase = getSupabase();
+  const supabase = await createSupabaseServerClient();
 
   // Link attuali (escluso il progetto principale che non va mai rimosso)
   const { data: current } = await supabase
@@ -153,8 +157,10 @@ export async function createTask(projectId: string, formData: FormData) {
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
 
+  const supabase = await createSupabaseServerClient();
+
   // 1. Crea il task (senza status — lo status vive nella junction)
-  const { data, error } = await getSupabase()
+  const { data, error } = await supabase
     .from("tasks")
     .insert({ project_id: projectId, title, description, notes, priority, type, is_cross_functional: isCross })
     .select("id")
@@ -163,7 +169,7 @@ export async function createTask(projectId: string, formData: FormData) {
   if (error) throw new Error(error.message);
 
   // 2. Inserisci la riga principale nella junction (progetto corrente, status 'todo')
-  const { error: jErr } = await getSupabase()
+  const { error: jErr } = await supabase
     .from("task_cross_projects")
     .insert({ task_id: data.id, project_id: projectId, status: "todo" });
 
@@ -171,7 +177,7 @@ export async function createTask(projectId: string, formData: FormData) {
 
   // 3. Aggiungi i link cross-project selezionati
   if (crossProjectIds.length > 0) {
-    const { error: cErr } = await getSupabase().from("task_cross_projects").insert(
+    const { error: cErr } = await supabase.from("task_cross_projects").insert(
       crossProjectIds.map((pid) => ({ task_id: data.id, project_id: pid, status: "todo" }))
     );
     if (cErr) throw new Error(cErr.message);
@@ -197,7 +203,8 @@ export async function updateTask(
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
 
   // Aggiorna i campi del task (NON lo status — quello è nella junction)
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("tasks")
     .update({ title, description, notes, priority, type, is_cross_functional: isCross })
     .eq("id", id);
@@ -219,7 +226,8 @@ export async function moveTask(
   status: TaskStatus
 ) {
   // Aggiorna lo status SOLO per questo progetto — gli altri restano invariati
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("task_cross_projects")
     .update({ status })
     .eq("task_id", id)
@@ -230,14 +238,16 @@ export async function moveTask(
 }
 
 export async function deleteTask(id: string, projectId: string) {
+  const supabase = await createSupabaseServerClient();
+
   // Recupera cross-links prima di eliminare per invalidare le cache
-  const { data: links } = await getSupabase()
+  const { data: links } = await supabase
     .from("task_cross_projects")
     .select("project_id")
     .eq("task_id", id);
 
   // ON DELETE CASCADE rimuove automaticamente le righe in task_cross_projects
-  const { error } = await getSupabase().from("tasks").delete().eq("id", id);
+  const { error } = await supabase.from("tasks").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
   for (const l of links ?? []) revalidatePath(`/projects/${l.project_id}`);
@@ -264,7 +274,9 @@ export async function createTaskFromHome(formData: FormData) {
   const [primaryProjectId, ...crossProjectIds] = projectIds;
   const isCross = crossProjectIds.length > 0;
 
-  const { data, error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+
+  const { data, error } = await supabase
     .from("tasks")
     .insert({ project_id: primaryProjectId, title, description, notes, priority, type, is_cross_functional: isCross })
     .select("id")
@@ -273,14 +285,14 @@ export async function createTaskFromHome(formData: FormData) {
   if (error) throw new Error(error.message);
 
   // Riga primaria nella junction
-  const { error: jErr } = await getSupabase()
+  const { error: jErr } = await supabase
     .from("task_cross_projects")
     .insert({ task_id: data.id, project_id: primaryProjectId, status: "todo" });
   if (jErr) throw new Error(jErr.message);
 
   // Righe cross-project
   if (crossProjectIds.length > 0) {
-    const { error: cErr } = await getSupabase()
+    const { error: cErr } = await supabase
       .from("task_cross_projects")
       .insert(crossProjectIds.map((pid) => ({ task_id: data.id, project_id: pid, status: "todo" })));
     if (cErr) throw new Error(cErr.message);
@@ -301,7 +313,8 @@ export async function createProjectIdea(formData: FormData) {
   const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
   const status = (String(formData.get("status") ?? "idea") || "idea") as IdeaStatus;
 
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("project_ideas")
     .insert({ title, description, priority, status });
 
@@ -317,7 +330,8 @@ export async function updateProjectIdea(id: string, formData: FormData) {
   const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
   const status = (String(formData.get("status") ?? "idea") || "idea") as IdeaStatus;
 
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("project_ideas")
     .update({ title, description, priority, status })
     .eq("id", id);
@@ -327,7 +341,8 @@ export async function updateProjectIdea(id: string, formData: FormData) {
 }
 
 export async function setIdeaStatus(id: string, status: IdeaStatus) {
-  const { error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
     .from("project_ideas")
     .update({ status })
     .eq("id", id);
@@ -337,7 +352,8 @@ export async function setIdeaStatus(id: string, status: IdeaStatus) {
 }
 
 export async function deleteProjectIdea(id: string) {
-  const { error } = await getSupabase().from("project_ideas").delete().eq("id", id);
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("project_ideas").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/");
 }
@@ -348,7 +364,7 @@ export async function deleteProjectIdea(id: string) {
  * come "promossa". L'idea resta nel backlog come memo storico.
  */
 export async function promoteIdeaToProject(id: string) {
-  const supabase = getSupabase();
+  const supabase = await createSupabaseServerClient();
 
   const { data: idea, error: readErr } = await supabase
     .from("project_ideas")

@@ -1,12 +1,13 @@
 # Entropico Hub
 
 Dashboard personale per gestire i progetti e le relative todolist (board Kanban).
-Operatore singolo, **nessuna autenticazione** in questa versione.
+**Multi-utente con dati isolati per utente** (Supabase Auth, registrazione a invito).
 
-**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Supabase (Postgres) · Vercel.
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · shadcn/ui · Supabase (Postgres + Auth) · Vercel.
 
 ## Funzionalità
 
+- **Autenticazione** email+password (Supabase Auth). Accesso a invito (account creati dall'amministratore, niente self-signup). Ogni utente vede e gestisce solo i propri dati (RLS per-utente).
 - Dashboard con elenco progetti (nome, descrizione, colore, stato attivo/archiviato, avanzamento task).
 - Creazione / modifica / archiviazione / eliminazione progetti.
 - **Metadati tecnici** per progetto: framework, linguaggio, tecnologie connesse (Supabase, Vercel, Render…) e strumenti (Docker, GitHub…). Catalogo predefinito con possibilità di aggiungere valori custom; visualizzati come badge su card e header del progetto.
@@ -21,12 +22,20 @@ Operatore singolo, **nessuna autenticazione** in questa versione.
 ## 1. Setup Supabase
 
 1. Crea un progetto su [supabase.com](https://supabase.com).
-2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS. Esegui poi le migration in `supabase/` (tra cui [`migration_project_ideas.sql`](supabase/migration_project_ideas.sql) per il Backlog idee); sono idempotenti.
+2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Esegui poi, in ordine, le migration in `supabase/` (tutte idempotenti):
+   - `migration_task_type.sql`, `migration_cross_functional.sql`
+   - `migration_project_ideas.sql` (Backlog idee)
+   - `migration_project_tech.sql` (metadati tecnici)
+   - `migration_auth.sql` (autenticazione + RLS per-utente — vedi sotto)
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
+4. **Crea il tuo utente** (registrazione a invito): **Authentication → Users → Add user** (email + password). Ripeti per ogni persona fidata.
+5. **Attiva la sicurezza per-utente** seguendo [`migration_auth.sql`](supabase/migration_auth.sql):
+   - *Fase A* (passi 1-6): colonne `owner_id`, default `auth.uid()`, policy RLS per-utente.
+   - *Fase B* (passi 7-8): copia il tuo **UID** (Authentication → Users), incollalo nelle `UPDATE` di backfill per assegnarti i dati esistenti, poi rendi `owner_id` obbligatorio.
 
-> ⚠️ **Sicurezza**: in questa v1 l'accesso è aperto — la anon key può leggere/scrivere tutti i dati e non c'è login. Tieni l'URL dell'app riservato. Quando aggiungerai le utenze, sostituisci le policy RLS in `schema.sql` con regole basate su `auth.uid()`.
+> 🔒 **Sicurezza**: dopo `migration_auth.sql` l'accesso anon è chiuso e ogni utente vede solo i propri dati (RLS basata su `auth.uid()`). La sessione vive in cookie HttpOnly gestiti da `@supabase/ssr`; le route sono protette dal proxy (`src/proxy.ts`).
 
 ## 2. Sviluppo in locale
 
@@ -57,21 +66,24 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # oppure NEXT_PUBLIC_SUPABASE_ANON_KE
 
 ```
 src/
+  proxy.ts                    # protezione route + refresh sessione (ex-middleware)
   app/
     page.tsx                  # dashboard progetti
+    login/page.tsx            # accesso (email+password)
     idee/page.tsx             # Backlog idee (nuovi progetti)
     projects/[id]/page.tsx    # board Kanban del progetto
-    layout.tsx, globals.css   # shell con sidebar/menu
+    layout.tsx, globals.css   # shell con sidebar/menu (auth-aware)
   components/
     ui/                       # primitive shadcn/ui
-    app-sidebar.tsx, mobile-nav.tsx   # navigazione
+    app-sidebar.tsx, mobile-nav.tsx   # navigazione + logout
     project-card.tsx, project-dialog.tsx
     task-card.tsx, task-dialog.tsx, kanban-board.tsx
     idea-card.tsx, idea-dialog.tsx
   lib/
-    supabase.ts               # client (anon key, lazy)
+    supabase/                 # client server/browser + env + proxy (helper)
     queries.ts                # letture
     actions.ts                # Server Actions (mutazioni)
+    auth-actions.ts           # logout
     types.ts                  # tipi e costanti
     nav.ts                    # voci del menu principale
 supabase/
@@ -81,7 +93,7 @@ supabase/
 
 ## Idee per le prossime versioni
 
-- Autenticazione (Supabase Auth) e policy RLS per utente.
+- Storage documentazione per progetto + API di upload protetta.
 - Drag & drop dei task tra colonne.
 - Scadenze, etichette, ricerca/filtri.
 - Realtime (Supabase Realtime) per aggiornamenti live.
