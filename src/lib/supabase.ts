@@ -16,15 +16,19 @@ export function getSupabase(): SupabaseClient {
   if (client) return client;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Accetta sia la nuova "publishable key" (sb_publishable_…) sia la
+  // legacy "anon key": entrambe vanno bene come chiave client.
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseKey) {
     throw new Error(
-      "Variabili d'ambiente Supabase mancanti. Imposta NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local (o nelle Environment Variables di Vercel)."
+      "Variabili d'ambiente Supabase mancanti. Imposta NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (o NEXT_PUBLIC_SUPABASE_ANON_KEY) in .env.local (o nelle Environment Variables di Vercel)."
     );
   }
 
-  client = createClient(supabaseUrl, supabaseAnonKey, {
+  client = createClient(supabaseUrl, supabaseKey, {
     auth: { persistSession: false },
   });
   return client;

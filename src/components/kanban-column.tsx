@@ -3,15 +3,17 @@
 import { useDroppable } from "@dnd-kit/core";
 
 import { cn } from "@/lib/utils";
-import { TASK_STATUSES, type Task } from "@/lib/types";
+import { TASK_STATUSES, type Project, type Task } from "@/lib/types";
 import { TaskCard } from "@/components/task-card";
 
 export function KanbanColumn({
   status,
   tasks,
+  allProjects = [],
 }: {
   status: (typeof TASK_STATUSES)[number];
   tasks: Task[];
+  allProjects?: Project[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status.value });
 
@@ -35,7 +37,9 @@ export function KanbanColumn({
             Trascina qui un task
           </p>
         ) : (
-          tasks.map((task) => <TaskCard key={task.id} task={task} />)
+          tasks.map((task) => (
+            <TaskCard key={task.id} task={task} allProjects={allProjects} />
+          ))
         )}
       </div>
     </div>

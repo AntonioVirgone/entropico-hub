@@ -8,6 +8,7 @@ import {
   ChevronRight,
   GripVertical,
   Pencil,
+  Share2,
   Trash2,
 } from "lucide-react";
 
@@ -15,6 +16,7 @@ import { deleteTask, moveTask } from "@/lib/actions";
 import {
   TASK_PRIORITIES,
   TASK_STATUSES,
+  type Project,
   type Task,
   type TaskStatus,
 } from "@/lib/types";
@@ -36,9 +38,11 @@ const PRIORITY_STYLES: Record<string, string> = {
 export function TaskCard({
   task,
   overlay = false,
+  allProjects = [],
 }: {
   task: Task;
   overlay?: boolean;
+  allProjects?: Project[];
 }) {
   const [pending, setPending] = useState(false);
 
@@ -131,6 +135,29 @@ export function TaskCard({
         </p>
       )}
 
+      {/* badge cross-funzionale con elenco progetti collegati */}
+      {task.is_cross_functional && task.cross_project_ids.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 pl-5">
+          <Share2 className="h-3 w-3 text-muted-foreground shrink-0" />
+          {task.cross_project_ids.map((pid) => {
+            const p = allProjects.find((x) => x.id === pid);
+            if (!p) return null;
+            return (
+              <span
+                key={pid}
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: p.color }}
+                />
+                {p.name}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       {/* azioni — visibili solo nella card reale, non nell'overlay */}
       {!overlay && (
         <div className="flex items-center justify-between pt-1 pl-5">
@@ -162,6 +189,7 @@ export function TaskCard({
             <TaskDialog
               projectId={task.project_id}
               task={task}
+              allProjects={allProjects}
               trigger={
                 <Button
                   size="icon"

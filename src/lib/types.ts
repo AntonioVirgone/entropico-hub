@@ -21,8 +21,11 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   position: number;
+  is_cross_functional: boolean;
   created_at: string;
   updated_at: string;
+  // Popolato dalla query (non è una colonna DB): project_id di tutti i progetti collegati
+  cross_project_ids: string[];
 }
 
 export const TASK_STATUSES: { value: TaskStatus; label: string }[] = [

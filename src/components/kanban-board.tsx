@@ -13,11 +13,17 @@ import {
 } from "@dnd-kit/core";
 
 import { moveTask } from "@/lib/actions";
-import { TASK_STATUSES, type Task, type TaskStatus } from "@/lib/types";
+import { TASK_STATUSES, type Project, type Task, type TaskStatus } from "@/lib/types";
 import { KanbanColumn } from "@/components/kanban-column";
 import { TaskCard } from "@/components/task-card";
 
-export function KanbanBoard({ tasks: initialTasks }: { tasks: Task[] }) {
+export function KanbanBoard({
+  tasks: initialTasks,
+  allProjects = [],
+}: {
+  tasks: Task[];
+  allProjects?: Project[];
+}) {
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [, startTransition] = useTransition();
@@ -75,12 +81,15 @@ export function KanbanBoard({ tasks: initialTasks }: { tasks: Task[] }) {
             key={status.value}
             status={status}
             tasks={tasks.filter((t) => t.status === status.value)}
+            allProjects={allProjects}
           />
         ))}
       </div>
 
       <DragOverlay dropAnimation={null}>
-        {activeTask && <TaskCard task={activeTask} overlay />}
+        {activeTask && (
+          <TaskCard task={activeTask} overlay allProjects={allProjects} />
+        )}
       </DragOverlay>
     </DndContext>
   );

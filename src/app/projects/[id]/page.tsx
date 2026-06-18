@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
 
-import { getProject, getTasks } from "@/lib/queries";
+import { getProject, getProjects, getTasks } from "@/lib/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/kanban-board";
@@ -16,10 +16,13 @@ export default async function ProjectBoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const project = await getProject(id);
-  if (!project) notFound();
+  const [project, tasks, allProjects] = await Promise.all([
+    getProject(id),
+    getTasks(id),
+    getProjects(),
+  ]);
 
-  const tasks = await getTasks(id);
+  if (!project) notFound();
 
   return (
     <div className="space-y-6">
@@ -53,6 +56,7 @@ export default async function ProjectBoardPage({
           </div>
           <TaskDialog
             projectId={project.id}
+            allProjects={allProjects}
             trigger={
               <Button>
                 <Plus /> Aggiungi task
@@ -62,7 +66,7 @@ export default async function ProjectBoardPage({
         </div>
       </div>
 
-      <KanbanBoard tasks={tasks} />
+      <KanbanBoard tasks={tasks} allProjects={allProjects} />
     </div>
   );
 }
