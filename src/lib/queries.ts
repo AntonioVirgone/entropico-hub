@@ -1,4 +1,4 @@
-import { getSupabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   HighPriorityTask,
   Project,
@@ -7,8 +7,17 @@ import type {
   TaskStatus,
 } from "@/lib/types";
 
+export async function getCurrentUserEmail(): Promise<string | null> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.email ?? null;
+}
+
 export async function getProjectIdeas(): Promise<ProjectIdea[]> {
-  const { data, error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
     .from("project_ideas")
     .select("*")
     .order("created_at", { ascending: false });
@@ -18,7 +27,8 @@ export async function getProjectIdeas(): Promise<ProjectIdea[]> {
 }
 
 export async function getProjects(): Promise<Project[]> {
-  const { data, error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
     .from("projects")
     .select("*")
     .order("created_at", { ascending: false });
@@ -28,7 +38,8 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const { data, error } = await getSupabase()
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
     .from("projects")
     .select("*")
     .eq("id", id)
@@ -39,7 +50,7 @@ export async function getProject(id: string): Promise<Project | null> {
 }
 
 export async function getTasks(projectId: string): Promise<Task[]> {
-  const supabase = getSupabase();
+  const supabase = await createSupabaseServerClient();
 
   // 1. Leggi tutti i link (task_id, status) per questo progetto dalla junction
   const { data: links, error: e1 } = await supabase
@@ -81,7 +92,7 @@ export async function getTasks(projectId: string): Promise<Task[]> {
 export async function getTaskCounts(
   projectId: string
 ): Promise<{ total: number; done: number }> {
-  const supabase = getSupabase();
+  const supabase = await createSupabaseServerClient();
 
   // Conta dalla junction: include i task cross-linked
   const { count: total } = await supabase
@@ -104,7 +115,7 @@ export async function getTaskCounts(
  * Per task cross-funzionali può restituire più righe (una per progetto).
  */
 export async function getHighPriorityActiveTasks(): Promise<HighPriorityTask[]> {
-  const supabase = getSupabase();
+  const supabase = await createSupabaseServerClient();
 
   // 1. Task ad alta priorità
   const { data: tasks, error: e1 } = await supabase
