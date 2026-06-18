@@ -66,7 +66,7 @@ export default async function ProjectBoardPage({
         </div>
       </div>
 
-      <KanbanBoard tasks={tasks} allProjects={allProjects} />
+      <KanbanBoard projectId={project.id} tasks={tasks} allProjects={allProjects} />
     </div>
   );
 }

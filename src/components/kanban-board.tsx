@@ -19,9 +19,11 @@ import { KanbanColumn } from "@/components/kanban-column";
 import { TaskCard } from "@/components/task-card";
 
 export function KanbanBoard({
+  projectId,
   tasks: initialTasks,
   allProjects = [],
 }: {
+  projectId: string;
   tasks: Task[];
   allProjects?: Project[];
 }) {
@@ -30,8 +32,6 @@ export function KanbanBoard({
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [, startTransition] = useTransition();
 
-  // Sincronizza lo stato locale ogni volta che il Server Component
-  // rilascia nuovi dati (dopo router.refresh() da qualsiasi azione).
   useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
@@ -55,14 +55,16 @@ export function KanbanBoard({
     const newStatus = over.id as TaskStatus;
     if (task.status === newStatus) return;
 
-    // Optimistic update immediato
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
     );
 
     startTransition(async () => {
       try {
-        await moveTask(task.id, task.project_id, newStatus);
+        // Usa projectId della board corrente, non task.project_id:
+        // per task cross-funzionali i due valori divergono e aggiornerebbe
+        // la riga sbagliata nella junction table.
+        await moveTask(task.id, projectId, newStatus);
         router.refresh();
       } catch {
         setTasks((prev) =>
@@ -89,13 +91,19 @@ export function KanbanBoard({
             status={status}
             tasks={tasks.filter((t) => t.status === status.value)}
             allProjects={allProjects}
+            projectId={projectId}
           />
         ))}
       </div>
 
       <DragOverlay dropAnimation={null}>
         {activeTask && (
-          <TaskCard task={activeTask} overlay allProjects={allProjects} />
+          <TaskCard
+            task={activeTask}
+            overlay
+            allProjects={allProjects}
+            projectId={projectId}
+          />
         )}
       </DragOverlay>
     </DndContext>

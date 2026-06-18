@@ -40,13 +40,19 @@ export function TaskCard({
   task,
   overlay = false,
   allProjects = [],
+  projectId,
 }: {
   task: Task;
   overlay?: boolean;
   allProjects?: Project[];
+  projectId?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  // Per task cross-funzionali task.project_id è il progetto primario,
+  // che può differire dalla board corrente. Usiamo sempre il projectId
+  // della board, cadendo su task.project_id solo nell'overlay DnD.
+  const currentProjectId = projectId ?? task.project_id;
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: task.id, disabled: overlay });
@@ -66,7 +72,7 @@ export function TaskCard({
   async function move(status: TaskStatus) {
     setPending(true);
     try {
-      await moveTask(task.id, task.project_id, status);
+      await moveTask(task.id, currentProjectId, status);
       router.refresh();
     } finally {
       setPending(false);
@@ -77,7 +83,7 @@ export function TaskCard({
     if (!confirm(`Eliminare il task "${task.title}"?`)) return;
     setPending(true);
     try {
-      await deleteTask(task.id, task.project_id);
+      await deleteTask(task.id, currentProjectId);
       router.refresh();
     } finally {
       setPending(false);
@@ -191,7 +197,7 @@ export function TaskCard({
           </div>
           <div className="flex items-center gap-1">
             <TaskDialog
-              projectId={task.project_id}
+              projectId={currentProjectId}
               task={task}
               allProjects={allProjects}
               trigger={

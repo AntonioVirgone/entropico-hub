@@ -10,10 +10,12 @@ export function KanbanColumn({
   status,
   tasks,
   allProjects = [],
+  projectId,
 }: {
   status: (typeof TASK_STATUSES)[number];
   tasks: Task[];
   allProjects?: Project[];
+  projectId: string;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status.value });
 
@@ -38,7 +40,12 @@ export function KanbanColumn({
           </p>
         ) : (
           tasks.map((task) => (
-            <TaskCard key={task.id} task={task} allProjects={allProjects} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              allProjects={allProjects}
+              projectId={projectId}
+            />
           ))
         )}
       </div>
