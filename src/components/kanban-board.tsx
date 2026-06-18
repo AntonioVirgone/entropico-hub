@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -24,12 +25,17 @@ export function KanbanBoard({
   tasks: Task[];
   allProjects?: Project[];
 }) {
+  const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [, startTransition] = useTransition();
 
-  // Richiede uno spostamento di 8px prima di avviare il drag,
-  // così i click su pulsanti e link non vengono intercettati.
+  // Sincronizza lo stato locale ogni volta che il Server Component
+  // rilascia nuovi dati (dopo router.refresh() da qualsiasi azione).
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -54,10 +60,10 @@ export function KanbanBoard({
       prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
     );
 
-    // Persiste su Supabase; in caso di errore rollback
     startTransition(async () => {
       try {
         await moveTask(task.id, task.project_id, newStatus);
+        router.refresh();
       } catch {
         setTasks((prev) =>
           prev.map((t) =>

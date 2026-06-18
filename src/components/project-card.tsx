@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 
 import { deleteProject, setProjectStatus } from "@/lib/actions";
@@ -27,6 +28,7 @@ export function ProjectCard({
   total: number;
   done: number;
 }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
   const isArchived = project.status === "archived";
 
@@ -34,6 +36,7 @@ export function ProjectCard({
     setPending(true);
     try {
       await setProjectStatus(project.id, isArchived ? "active" : "archived");
+      router.refresh();
     } finally {
       setPending(false);
     }
@@ -49,6 +52,7 @@ export function ProjectCard({
     setPending(true);
     try {
       await deleteProject(project.id);
+      router.refresh();
     } finally {
       setPending(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { createProject, updateProject } from "@/lib/actions";
 import { PROJECT_COLORS, type Project } from "@/lib/types";
@@ -26,6 +27,7 @@ export function ProjectDialog({
   trigger: React.ReactNode;
   project?: Project;
 }) {
+  const router = useRouter();
   const isEdit = !!project;
   const [open, setOpen] = useState(false);
   const [color, setColor] = useState<string>(
@@ -42,6 +44,7 @@ export function ProjectDialog({
         await createProject(formData);
       }
       setOpen(false);
+      router.refresh();
     } finally {
       setPending(false);
     }

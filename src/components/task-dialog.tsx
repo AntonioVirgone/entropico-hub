@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
 
 import { createTask, updateTask } from "@/lib/actions";
@@ -38,6 +39,7 @@ export function TaskDialog({
   trigger: React.ReactNode;
   allProjects?: Project[];
 }) {
+  const router = useRouter();
   const isEdit = !!task;
   const [open, setOpen] = useState(false);
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "medium");
@@ -70,6 +72,7 @@ export function TaskDialog({
         await createTask(projectId, formData);
       }
       setOpen(false);
+      router.refresh();
     } finally {
       setPending(false);
     }

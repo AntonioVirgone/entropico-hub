@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -44,6 +45,7 @@ export function TaskCard({
   overlay?: boolean;
   allProjects?: Project[];
 }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -65,6 +67,7 @@ export function TaskCard({
     setPending(true);
     try {
       await moveTask(task.id, task.project_id, status);
+      router.refresh();
     } finally {
       setPending(false);
     }
@@ -75,6 +78,7 @@ export function TaskCard({
     setPending(true);
     try {
       await deleteTask(task.id, task.project_id);
+      router.refresh();
     } finally {
       setPending(false);
     }
