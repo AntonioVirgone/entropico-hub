@@ -21,7 +21,7 @@ Operatore singolo, **nessuna autenticazione** in questa versione.
 2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS.
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
-   - **anon key**: Project Settings → *API Keys* → chiave `anon` / `public`.
+   - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
 
 > ⚠️ **Sicurezza**: in questa v1 l'accesso è aperto — la anon key può leggere/scrivere tutti i dati e non c'è login. Tieni l'URL dell'app riservato. Quando aggiungerai le utenze, sostituisci le policy RLS in `schema.sql` con regole basate su `auth.uid()`.
 
@@ -39,13 +39,13 @@ Variabili d'ambiente (`.env.local`):
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # oppure NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
 
 ## 3. Deploy su Vercel
 
 1. Importa il repository GitHub `AntonioVirgone/entropico-hub` su [vercel.com](https://vercel.com).
-2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Production + Preview).
+2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Production + Preview).
 3. Deploy. Vercel rileva Next.js automaticamente (nessuna configurazione extra).
 
 ---
