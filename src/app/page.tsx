@@ -1,14 +1,20 @@
 import { Plus } from "lucide-react";
 
-import { getProjects, getTaskCounts } from "@/lib/queries";
+import { getHighPriorityActiveTasks, getProjects, getTaskCounts } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
+import { HighPriorityTasks } from "@/components/high-priority-tasks";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectDialog } from "@/components/project-dialog";
+import { StaleTasksAlert } from "@/components/stale-tasks-alert";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const projects = await getProjects();
+  const [projects, highPriorityTasks] = await Promise.all([
+    getProjects(),
+    getHighPriorityActiveTasks(),
+  ]);
+
   const counts = await Promise.all(projects.map((p) => getTaskCounts(p.id)));
   const withCounts = projects.map((project, i) => ({
     project,
@@ -20,6 +26,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Alert task scaduti (client component, si mostra solo se necessario) */}
+      <StaleTasksAlert tasks={highPriorityTasks} />
+
+      {/* Header progetti */}
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Progetti</h1>
@@ -37,6 +47,7 @@ export default async function DashboardPage() {
         />
       </div>
 
+      {/* Griglia progetti attivi */}
       {active.length === 0 ? (
         <div className="rounded-xl border border-dashed py-16 text-center">
           <p className="text-muted-foreground">
@@ -56,6 +67,20 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {/* Tabella task alta priorità */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Alta priorità
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Task con priorità alta non ancora completati in tutti i progetti.
+          </p>
+        </div>
+        <HighPriorityTasks tasks={highPriorityTasks} />
+      </section>
+
+      {/* Sezione archiviati */}
       {archived.length > 0 && (
         <section className="space-y-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">

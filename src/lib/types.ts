@@ -40,6 +40,18 @@ export const TASK_PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: "high", label: "Alta" },
 ];
 
+/** Vista denormalizzata usata nella tabella alta-priorità della home */
+export interface HighPriorityTask {
+  taskId: string;
+  title: string;
+  created_at: string;
+  is_cross_functional: boolean;
+  status: TaskStatus;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+}
+
 export const PROJECT_COLORS = [
   "#ef4444",
   "#f97316",
