@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { slugify } from "@/lib/utils";
 import type {
+  DocumentFormat,
   IdeaStatus,
   ProjectStatus,
   TaskPriority,
@@ -388,4 +390,62 @@ export async function promoteIdeaToProject(id: string) {
 
   if (updErr) throw new Error(updErr.message);
   revalidatePath("/");
+}
+
+// ----------------------------------------------------------------
+// Documentazione progetti (creazione/modifica manuale dalla UI)
+// ----------------------------------------------------------------
+export async function createDocument(projectId: string, formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+
+  const content = String(formData.get("content") ?? "");
+  const format = (String(formData.get("format") ?? "markdown") ||
+    "markdown") as DocumentFormat;
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.from("project_documents").insert({
+    project_id: projectId,
+    title,
+    slug: slugify(title),
+    content,
+    format,
+    source: "manual",
+  });
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function updateDocument(
+  id: string,
+  projectId: string,
+  formData: FormData
+) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+
+  const content = String(formData.get("content") ?? "");
+  const format = (String(formData.get("format") ?? "markdown") ||
+    "markdown") as DocumentFormat;
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("project_documents")
+    .update({ title, slug: slugify(title), content, format })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteDocument(id: string, projectId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("project_documents")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
 }
