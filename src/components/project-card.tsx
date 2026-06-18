@@ -18,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProjectDialog } from "@/components/project-dialog";
+import { TechBadges } from "@/components/tech-badges";
 
 export function ProjectCard({
   project,
@@ -77,12 +78,13 @@ export function ProjectCard({
           </CardDescription>
         )}
       </CardHeader>
-      <CardContent className="flex-1">
+      <CardContent className="flex-1 space-y-3">
         <p className="text-sm text-muted-foreground">
           {total === 0
             ? "Nessun task"
             : `${done}/${total} task completati`}
         </p>
+        <TechBadges project={project} compact />
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2">
         <Button asChild size="sm">

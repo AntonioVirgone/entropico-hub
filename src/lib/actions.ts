@@ -15,16 +15,33 @@ import type {
 // ----------------------------------------------------------------
 // Projects
 // ----------------------------------------------------------------
+
+/** Legge un campo lista da FormData normalizzando: trim, scarto vuoti, dedup. */
+function parseList(formData: FormData, name: string): string[] {
+  return [
+    ...new Set(
+      formData
+        .getAll(name)
+        .map((v) => String(v).trim())
+        .filter(Boolean)
+    ),
+  ];
+}
+
 export async function createProject(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
   const description = String(formData.get("description") ?? "").trim() || null;
   const color = String(formData.get("color") ?? "#3b82f6");
+  const framework = String(formData.get("framework") ?? "").trim() || null;
+  const language = String(formData.get("language") ?? "").trim() || null;
+  const technologies = parseList(formData, "technologies");
+  const tools = parseList(formData, "tools");
 
   const { error } = await getSupabase()
     .from("projects")
-    .insert({ name, description, color });
+    .insert({ name, description, color, framework, language, technologies, tools });
 
   if (error) throw new Error(error.message);
   revalidatePath("/");
@@ -36,10 +53,14 @@ export async function updateProject(id: string, formData: FormData) {
 
   const description = String(formData.get("description") ?? "").trim() || null;
   const color = String(formData.get("color") ?? "#3b82f6");
+  const framework = String(formData.get("framework") ?? "").trim() || null;
+  const language = String(formData.get("language") ?? "").trim() || null;
+  const technologies = parseList(formData, "technologies");
+  const tools = parseList(formData, "tools");
 
   const { error } = await getSupabase()
     .from("projects")
-    .update({ name, description, color })
+    .update({ name, description, color, framework, language, technologies, tools })
     .eq("id", id);
 
   if (error) throw new Error(error.message);

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/kanban-board";
 import { TaskDialog } from "@/components/task-dialog";
+import { TechBadges } from "@/components/tech-badges";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,9 @@ export default async function ProjectBoardPage({
                   {project.description}
                 </p>
               )}
+              <div className="mt-2">
+                <TechBadges project={project} />
+              </div>
             </div>
           </div>
           <TaskDialog

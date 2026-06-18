@@ -15,6 +15,11 @@ export interface Project {
   description: string | null;
   color: string;
   status: ProjectStatus;
+  // Metadati tecnici (tutti opzionali)
+  framework: string | null;
+  language: string | null;
+  technologies: string[];
+  tools: string[];
   created_at: string;
   updated_at: string;
 }
@@ -86,6 +91,72 @@ export interface HighPriorityTask {
   projectName: string;
   projectColor: string;
 }
+
+// ── Cataloghi suggeriti per i metadati tecnici dei progetti ──
+// Liste di default: si possono selezionare o integrare con valori custom.
+
+export const FRAMEWORK_OPTIONS = [
+  "Next.js",
+  "React",
+  "Vue",
+  "Svelte",
+  "Angular",
+  "Astro",
+  "Express",
+  "NestJS",
+  "Django",
+  "FastAPI",
+  "Laravel",
+  "Spring",
+  "Flutter",
+  "React Native",
+] as const;
+
+export const LANGUAGE_OPTIONS = [
+  "TypeScript",
+  "JavaScript",
+  "Python",
+  "Go",
+  "Rust",
+  "Java",
+  "Kotlin",
+  "Swift",
+  "PHP",
+  "Ruby",
+  "C#",
+  "Dart",
+] as const;
+
+export const TECHNOLOGY_OPTIONS = [
+  "Supabase",
+  "Vercel",
+  "Render",
+  "PostgreSQL",
+  "MySQL",
+  "MongoDB",
+  "Redis",
+  "Firebase",
+  "AWS",
+  "Cloudflare",
+  "Stripe",
+  "Tailwind CSS",
+  "Prisma",
+] as const;
+
+export const TOOL_OPTIONS = [
+  "GitHub",
+  "GitLab",
+  "Docker",
+  "GitHub Actions",
+  "Vite",
+  "Turbopack",
+  "ESLint",
+  "Prettier",
+  "Jest",
+  "Playwright",
+  "Figma",
+  "Postman",
+] as const;
 
 export const PROJECT_COLORS = [
   "#ef4444",
