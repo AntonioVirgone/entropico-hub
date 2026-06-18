@@ -82,6 +82,30 @@ export const IDEA_STATUSES: { value: IdeaStatus; label: string }[] = [
   { value: "scartata", label: "Scartata" },
 ];
 
+export type DocumentFormat = "markdown" | "text";
+export type DocumentSource = "manual" | "api";
+
+/** Documento di progetto: archivio di documentazione (markdown o testo). */
+export interface ProjectDocument {
+  id: string;
+  project_id: string;
+  title: string;
+  slug: string;
+  content: string;
+  format: DocumentFormat;
+  source: DocumentSource;
+  created_at: string;
+  updated_at: string;
+}
+
+export const DOCUMENT_FORMATS: { value: DocumentFormat; label: string }[] = [
+  { value: "markdown", label: "Markdown" },
+  { value: "text", label: "Testo semplice" },
+];
+
+/** Dimensione massima del contenuto di un documento (caratteri). */
+export const DOCUMENT_MAX_CONTENT = 1_000_000;
+
 /** Vista denormalizzata usata nella tabella alta-priorità della home */
 export interface HighPriorityTask {
   taskId: string;

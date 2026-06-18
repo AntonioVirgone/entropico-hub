@@ -2,10 +2,25 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   HighPriorityTask,
   Project,
+  ProjectDocument,
   ProjectIdea,
   Task,
   TaskStatus,
 } from "@/lib/types";
+
+export async function getProjectDocuments(
+  projectId: string
+): Promise<ProjectDocument[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("project_documents")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ProjectDocument[];
+}
 
 export async function getCurrentUserEmail(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();

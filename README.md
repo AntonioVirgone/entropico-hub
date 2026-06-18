@@ -16,6 +16,7 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
 - Spostamento dei task tra colonne con i pulsanti freccia.
 - **Backlog idee** (pagina dedicata `/idee`): memo per annotare nuovi progetti da realizzare anche in futuro. Entità autonoma, scollegata dalle todo-list: ogni idea ha titolo, descrizione, priorità e stato (Idea → In valutazione → Approvata → Promossa / Scartata). Da un'idea si può **promuovere a progetto** (crea un progetto precompilato, senza collegamenti automatici).
 - **Layout a web app** con menu di navigazione: sidebar su desktop, barra di navigazione su mobile. Sezioni: **Dashboard** (`/`) e **Backlog idee** (`/idee`).
+- **Documentazione progetti**: ogni progetto ha un archivio di documenti (Markdown o testo) con anteprima renderizzata. Creazione/modifica/eliminazione dalla UI **e** upload via **API protetta** (pensata per far caricare a Claude la doc generata, già assegnata al progetto).
 
 ---
 
@@ -27,6 +28,7 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
    - `migration_project_ideas.sql` (Backlog idee)
    - `migration_project_tech.sql` (metadati tecnici)
    - `migration_auth.sql` (autenticazione + RLS per-utente — vedi sotto)
+   - `migration_project_documents.sql` (documentazione progetti)
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
@@ -52,13 +54,35 @@ Variabili d'ambiente (`.env.local`):
 ```
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # oppure NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+# Solo per l'API documentazione (lato server, NON esporre):
+SUPABASE_SERVICE_ROLE_KEY=...   # Project Settings > API Keys > service_role
+DOCS_API_KEY=...                # segreto a tua scelta per autenticare l'API
 ```
 
 ## 3. Deploy su Vercel
 
 1. Importa il repository GitHub `AntonioVirgone/entropico-hub` su [vercel.com](https://vercel.com).
-2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Production + Preview).
+2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Production + Preview). Per l'API documentazione aggiungi anche `SUPABASE_SERVICE_ROLE_KEY` e `DOCS_API_KEY`.
 3. Deploy. Vercel rileva Next.js automaticamente (nessuna configurazione extra).
+
+## 4. API documentazione
+
+Carica un documento già assegnato a un progetto (utile per farlo fare a Claude):
+
+```bash
+curl -X POST "https://<dominio>/api/projects/<PROJECT_ID>/documents" \
+  -H "Authorization: Bearer $DOCS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "title": "Architettura", "content": "# ...", "format": "markdown", "upsert": true }'
+```
+
+- **Auth**: header `Authorization: Bearer <DOCS_API_KEY>`. Senza `DOCS_API_KEY` configurata l'endpoint è disabilitato (503).
+- **`upsert: true`**: sovrascrive il documento con lo stesso slug (derivato dal titolo); altrimenti ne crea uno nuovo.
+- **`GET`** sullo stesso path elenca i documenti del progetto.
+- La scrittura usa la *service role key* (bypassa l'RLS) **solo dopo** la verifica della chiave. Il `PROJECT_ID` è visibile nella pagina del progetto (pannello "Carica documenti via API").
+
+> ⚠️ `DOCS_API_KEY` è una chiave a livello operatore: chi la possiede può scrivere su qualsiasi progetto. Per ambienti con più utenti, l'evoluzione naturale sono token API per-utente (v2).
 
 ---
 

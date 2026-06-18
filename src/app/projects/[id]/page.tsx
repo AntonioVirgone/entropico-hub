@@ -2,12 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
 
-import { getProject, getProjects, getTasks } from "@/lib/queries";
+import {
+  getProject,
+  getProjectDocuments,
+  getProjects,
+  getTasks,
+} from "@/lib/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/kanban-board";
 import { TaskDialog } from "@/components/task-dialog";
 import { TechBadges } from "@/components/tech-badges";
+import { DocumentsSection } from "@/components/documents-section";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +23,11 @@ export default async function ProjectBoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [project, tasks, allProjects] = await Promise.all([
+  const [project, tasks, allProjects, documents] = await Promise.all([
     getProject(id),
     getTasks(id),
     getProjects(),
+    getProjectDocuments(id),
   ]);
 
   if (!project) notFound();
@@ -71,6 +78,8 @@ export default async function ProjectBoardPage({
       </div>
 
       <KanbanBoard projectId={project.id} tasks={tasks} allProjects={allProjects} />
+
+      <DocumentsSection projectId={project.id} documents={documents} />
     </div>
   );
 }
