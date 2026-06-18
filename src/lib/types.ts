@@ -2,6 +2,12 @@ export type ProjectStatus = "active" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskType = "feature" | "bug";
+export type IdeaStatus =
+  | "idea"
+  | "valutazione"
+  | "approvata"
+  | "promossa"
+  | "scartata";
 
 export interface Project {
   id: string;
@@ -45,6 +51,28 @@ export const TASK_PRIORITIES: { value: TaskPriority; label: string }[] = [
 export const TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: "feature", label: "Feature" },
   { value: "bug", label: "Bug" },
+];
+
+/**
+ * Idea di progetto: memo per nuovi progetti da realizzare anche in futuro.
+ * Entità autonoma, NON collegata ai projects/tasks delle todo-list.
+ */
+export interface ProjectIdea {
+  id: string;
+  title: string;
+  description: string | null;
+  status: IdeaStatus;
+  priority: TaskPriority;
+  created_at: string;
+  updated_at: string;
+}
+
+export const IDEA_STATUSES: { value: IdeaStatus; label: string }[] = [
+  { value: "idea", label: "Idea" },
+  { value: "valutazione", label: "In valutazione" },
+  { value: "approvata", label: "Approvata" },
+  { value: "promossa", label: "Promossa" },
+  { value: "scartata", label: "Scartata" },
 ];
 
 /** Vista denormalizzata usata nella tabella alta-priorità della home */

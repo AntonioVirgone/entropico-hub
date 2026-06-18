@@ -12,13 +12,15 @@ Operatore singolo, **nessuna autenticazione** in questa versione.
 - Board Kanban per progetto con 3 colonne: **Da fare → In corso → Fatto**.
 - Task con titolo, descrizione, note e priorità (Bassa / Media / Alta).
 - Spostamento dei task tra colonne con i pulsanti freccia.
+- **Backlog idee** (pagina dedicata `/idee`): memo per annotare nuovi progetti da realizzare anche in futuro. Entità autonoma, scollegata dalle todo-list: ogni idea ha titolo, descrizione, priorità e stato (Idea → In valutazione → Approvata → Promossa / Scartata). Da un'idea si può **promuovere a progetto** (crea un progetto precompilato, senza collegamenti automatici).
+- **Layout a web app** con menu di navigazione: sidebar su desktop, barra di navigazione su mobile. Sezioni: **Dashboard** (`/`) e **Backlog idee** (`/idee`).
 
 ---
 
 ## 1. Setup Supabase
 
 1. Crea un progetto su [supabase.com](https://supabase.com).
-2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS.
+2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS. Esegui poi le migration in `supabase/` (tra cui [`migration_project_ideas.sql`](supabase/migration_project_ideas.sql) per il Backlog idee); sono idempotenti.
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
@@ -56,19 +58,24 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # oppure NEXT_PUBLIC_SUPABASE_ANON_KE
 src/
   app/
     page.tsx                  # dashboard progetti
+    idee/page.tsx             # Backlog idee (nuovi progetti)
     projects/[id]/page.tsx    # board Kanban del progetto
-    layout.tsx, globals.css
+    layout.tsx, globals.css   # shell con sidebar/menu
   components/
     ui/                       # primitive shadcn/ui
+    app-sidebar.tsx, mobile-nav.tsx   # navigazione
     project-card.tsx, project-dialog.tsx
     task-card.tsx, task-dialog.tsx, kanban-board.tsx
+    idea-card.tsx, idea-dialog.tsx
   lib/
     supabase.ts               # client (anon key, lazy)
     queries.ts                # letture
     actions.ts                # Server Actions (mutazioni)
     types.ts                  # tipi e costanti
+    nav.ts                    # voci del menu principale
 supabase/
   schema.sql                  # schema DB da eseguire su Supabase
+  migration_*.sql             # migration incrementali (idempotenti)
 ```
 
 ## Idee per le prossime versioni
