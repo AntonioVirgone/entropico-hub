@@ -1,5 +1,21 @@
 import { getSupabase } from "@/lib/supabase";
-import type { HighPriorityTask, Project, Task, TaskStatus } from "@/lib/types";
+import type {
+  HighPriorityTask,
+  Project,
+  ProjectIdea,
+  Task,
+  TaskStatus,
+} from "@/lib/types";
+
+export async function getProjectIdeas(): Promise<ProjectIdea[]> {
+  const { data, error } = await getSupabase()
+    .from("project_ideas")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ProjectIdea[];
+}
 
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await getSupabase()

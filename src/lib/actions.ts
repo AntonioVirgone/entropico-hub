@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getSupabase } from "@/lib/supabase";
-import type { ProjectStatus, TaskPriority, TaskStatus, TaskType } from "@/lib/types";
+import type {
+  IdeaStatus,
+  ProjectStatus,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+} from "@/lib/types";
 
 // ----------------------------------------------------------------
 // Projects
@@ -260,5 +266,89 @@ export async function createTaskFromHome(formData: FormData) {
   }
 
   for (const pid of projectIds) revalidatePath(`/projects/${pid}`);
+  revalidatePath("/");
+}
+
+// ----------------------------------------------------------------
+// Backlog idee (nuovi progetti) — entità autonoma, scollegata dai task
+// ----------------------------------------------------------------
+export async function createProjectIdea(formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
+  const status = (String(formData.get("status") ?? "idea") || "idea") as IdeaStatus;
+
+  const { error } = await getSupabase()
+    .from("project_ideas")
+    .insert({ title, description, priority, status });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+}
+
+export async function updateProjectIdea(id: string, formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const priority = (String(formData.get("priority") ?? "medium") || "medium") as TaskPriority;
+  const status = (String(formData.get("status") ?? "idea") || "idea") as IdeaStatus;
+
+  const { error } = await getSupabase()
+    .from("project_ideas")
+    .update({ title, description, priority, status })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+}
+
+export async function setIdeaStatus(id: string, status: IdeaStatus) {
+  const { error } = await getSupabase()
+    .from("project_ideas")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+}
+
+export async function deleteProjectIdea(id: string) {
+  const { error } = await getSupabase().from("project_ideas").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+}
+
+/**
+ * Promuove un'idea a progetto reale: crea un nuovo project precompilato
+ * (azione manuale ed esplicita, nessun legame automatico) e marca l'idea
+ * come "promossa". L'idea resta nel backlog come memo storico.
+ */
+export async function promoteIdeaToProject(id: string) {
+  const supabase = getSupabase();
+
+  const { data: idea, error: readErr } = await supabase
+    .from("project_ideas")
+    .select("title, description")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (readErr) throw new Error(readErr.message);
+  if (!idea) return;
+
+  const { error: insErr } = await supabase
+    .from("projects")
+    .insert({ name: idea.title as string, description: (idea.description as string | null) ?? null });
+
+  if (insErr) throw new Error(insErr.message);
+
+  const { error: updErr } = await supabase
+    .from("project_ideas")
+    .update({ status: "promossa" })
+    .eq("id", id);
+
+  if (updErr) throw new Error(updErr.message);
   revalidatePath("/");
 }

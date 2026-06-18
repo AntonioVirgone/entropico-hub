@@ -12,13 +12,14 @@ Operatore singolo, **nessuna autenticazione** in questa versione.
 - Board Kanban per progetto con 3 colonne: **Da fare → In corso → Fatto**.
 - Task con titolo, descrizione, note e priorità (Bassa / Media / Alta).
 - Spostamento dei task tra colonne con i pulsanti freccia.
+- **Backlog idee**: sezione in cima alla dashboard per annotare nuovi progetti da realizzare anche in futuro. Entità autonoma, scollegata dalle todo-list: ogni idea ha titolo, descrizione, priorità e stato (Idea → In valutazione → Approvata → Promossa / Scartata). Da un'idea si può **promuovere a progetto** (crea un progetto precompilato, senza collegamenti automatici).
 
 ---
 
 ## 1. Setup Supabase
 
 1. Crea un progetto su [supabase.com](https://supabase.com).
-2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS.
+2. Vai su **SQL Editor → New query**, incolla il contenuto di [`supabase/schema.sql`](supabase/schema.sql) e premi **Run**. Crea le tabelle `projects` e `tasks`, i trigger e le policy RLS. Esegui poi le migration in `supabase/` (tra cui [`migration_project_ideas.sql`](supabase/migration_project_ideas.sql) per il Backlog idee); sono idempotenti.
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
