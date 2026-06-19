@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { resolveProjectColor } from "@/lib/tech-colors";
 import type {
   HighPriorityTask,
   Project,
@@ -157,7 +158,7 @@ export async function getHighPriorityActiveTasks(): Promise<HighPriorityTask[]> 
   const projectIds = [...new Set(links.map((l) => l.project_id as string))];
   const { data: projects, error: e3 } = await supabase
     .from("projects")
-    .select("id, name, color, status")
+    .select("id, name, color, status, framework, language")
     .in("id", projectIds)
     .eq("status", "active");
 
@@ -183,7 +184,11 @@ export async function getHighPriorityActiveTasks(): Promise<HighPriorityTask[]> 
         status: link.status as TaskStatus,
         projectId: link.project_id as string,
         projectName: project.name as string,
-        projectColor: project.color as string,
+        projectColor: resolveProjectColor({
+          language: project.language as string | null,
+          framework: project.framework as string | null,
+          fallback: project.color as string,
+        }),
       };
     })
     .filter((item): item is HighPriorityTask => item !== null)

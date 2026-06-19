@@ -14,6 +14,7 @@ import {
   type TaskType,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { resolveProjectColor } from "@/lib/tech-colors";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -257,7 +258,13 @@ export function TaskDialog({
                       />
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: p.color }}
+                        style={{
+                          backgroundColor: resolveProjectColor({
+                            language: p.language,
+                            framework: p.framework,
+                            fallback: p.color,
+                          }),
+                        }}
                       />
                       <span
                         className={cn(
@@ -318,7 +325,13 @@ export function TaskDialog({
                       />
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: p.color }}
+                        style={{
+                          backgroundColor: resolveProjectColor({
+                            language: p.language,
+                            framework: p.framework,
+                            fallback: p.color,
+                          }),
+                        }}
                       />
                       <span
                         className={cn(
@@ -374,7 +387,13 @@ export function TaskDialog({
                       />
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: p.color }}
+                        style={{
+                          backgroundColor: resolveProjectColor({
+                            language: p.language,
+                            framework: p.framework,
+                            fallback: p.color,
+                          }),
+                        }}
                       />
                       <span
                         className={cn(

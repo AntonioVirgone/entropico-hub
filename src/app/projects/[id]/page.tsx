@@ -14,6 +14,7 @@ import { KanbanBoard } from "@/components/kanban-board";
 import { TaskDialog } from "@/components/task-dialog";
 import { TechBadges } from "@/components/tech-badges";
 import { DocumentsSection } from "@/components/documents-section";
+import { resolveProjectColor } from "@/lib/tech-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +44,14 @@ export default async function ProjectBoardPage({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <span
-              className="h-4 w-4 shrink-0 rounded-full"
-              style={{ backgroundColor: project.color }}
+              className="h-4 w-4 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+              style={{
+                backgroundColor: resolveProjectColor({
+                  language: project.language,
+                  framework: project.framework,
+                  fallback: project.color,
+                }),
+              }}
             />
             <div className="min-w-0">
               <div className="flex items-center gap-2">

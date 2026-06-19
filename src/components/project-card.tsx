@@ -7,6 +7,7 @@ import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 
 import { deleteProject, setProjectStatus } from "@/lib/actions";
 import type { Project } from "@/lib/types";
+import { resolveProjectColor } from "@/lib/tech-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,11 @@ export function ProjectCard({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const isArchived = project.status === "archived";
+  const dotColor = resolveProjectColor({
+    language: project.language,
+    framework: project.framework,
+    fallback: project.color,
+  });
 
   async function toggleArchive() {
     setPending(true);
@@ -65,8 +71,8 @@ export function ProjectCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span
-              className="h-3 w-3 shrink-0 rounded-full"
-              style={{ backgroundColor: project.color }}
+              className="h-3 w-3 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+              style={{ backgroundColor: dotColor }}
             />
             <CardTitle className="truncate">{project.name}</CardTitle>
           </div>

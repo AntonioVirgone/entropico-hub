@@ -108,7 +108,12 @@ export function ProjectDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Colore</Label>
+            <Label>
+              Colore{" "}
+              <span className="font-normal text-muted-foreground">
+                (fallback: il pallino usa il colore del linguaggio, se impostato)
+              </span>
+            </Label>
             <input type="hidden" name="color" value={color} />
             <div className="flex flex-wrap gap-2">
               {PROJECT_COLORS.map((c) => (

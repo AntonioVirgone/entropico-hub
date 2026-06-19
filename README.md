@@ -11,6 +11,7 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
 - Dashboard con elenco progetti (nome, descrizione, colore, stato attivo/archiviato, avanzamento task).
 - Creazione / modifica / archiviazione / eliminazione progetti.
 - **Metadati tecnici** per progetto: framework, linguaggio, tecnologie connesse (Supabase, Vercel, Render…) e strumenti (Docker, GitHub…). Catalogo predefinito con possibilità di aggiungere valori custom; visualizzati come badge su card e header del progetto.
+- **Colori in base allo stack (stile GitHub)**: i badge dello stack mostrano il colore di brand della tecnologia (palette *linguist*), e il pallino identificativo del progetto deriva dal **linguaggio principale** (fallback: framework → colore scelto a mano).
 - Board Kanban per progetto con 3 colonne: **Da fare → In corso → Fatto**.
 - Task con titolo, descrizione, note e priorità (Bassa / Media / Alta).
 - Spostamento dei task tra colonne con i pulsanti freccia.

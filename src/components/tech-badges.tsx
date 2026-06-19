@@ -1,28 +1,33 @@
 import type { Project } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { getTechColor } from "@/lib/tech-colors";
 
-const CATEGORY_STYLES = {
-  framework: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  language: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
-  technology: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-  tool: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+/** Colore di fallback per categoria, quando la tecnologia non è in palette. */
+const CATEGORY_FALLBACK = {
+  framework: "#6366f1",
+  language: "#8b5cf6",
+  technology: "#10b981",
+  tool: "#f59e0b",
 } as const;
 
-type Category = keyof typeof CATEGORY_STYLES;
-type TechItem = { label: string; category: Category };
+type Category = keyof typeof CATEGORY_FALLBACK;
+type TechItem = { label: string; color: string };
+
+function makeItem(label: string, category: Category): TechItem {
+  return { label, color: getTechColor(label) ?? CATEGORY_FALLBACK[category] };
+}
 
 function collectItems(project: Project): TechItem[] {
   const items: TechItem[] = [];
-  if (project.framework) items.push({ label: project.framework, category: "framework" });
-  if (project.language) items.push({ label: project.language, category: "language" });
-  for (const t of project.technologies ?? []) items.push({ label: t, category: "technology" });
-  for (const t of project.tools ?? []) items.push({ label: t, category: "tool" });
+  if (project.framework) items.push(makeItem(project.framework, "framework"));
+  if (project.language) items.push(makeItem(project.language, "language"));
+  for (const t of project.technologies ?? []) items.push(makeItem(t, "technology"));
+  for (const t of project.tools ?? []) items.push(makeItem(t, "tool"));
   return items;
 }
 
 /**
- * Mostra i metadati tecnici di un progetto come badge colorati per categoria.
- * `compact` (card) limita il numero di badge mostrando un "+N" finale.
+ * Mostra i metadati tecnici di un progetto come badge con pallino del colore
+ * di brand (stile GitHub). `compact` (card) limita il numero con un "+N".
  */
 export function TechBadges({
   project,
@@ -43,17 +48,18 @@ export function TechBadges({
     <div className="flex flex-wrap gap-1.5">
       {visible.map((item) => (
         <span
-          key={`${item.category}-${item.label}`}
-          className={cn(
-            "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-            CATEGORY_STYLES[item.category]
-          )}
+          key={item.label}
+          className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-2 py-0.5 text-xs font-medium text-foreground"
         >
+          <span
+            className="h-2 w-2 shrink-0 rounded-full border border-black/10 dark:border-white/20"
+            style={{ backgroundColor: item.color }}
+          />
           {item.label}
         </span>
       ))}
       {hidden > 0 && (
-        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
           +{hidden}
         </span>
       )}
