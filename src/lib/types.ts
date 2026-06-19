@@ -106,6 +106,18 @@ export const DOCUMENT_FORMATS: { value: DocumentFormat; label: string }[] = [
 /** Dimensione massima del contenuto di un documento (caratteri). */
 export const DOCUMENT_MAX_CONTENT = 1_000_000;
 
+/**
+ * Token API personale (vista sicura per la UI: mai il token in chiaro né l'hash).
+ * Il valore completo è mostrato una sola volta alla creazione.
+ */
+export interface ApiToken {
+  id: string;
+  name: string;
+  token_prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+}
+
 /** Vista denormalizzata usata nella tabella alta-priorità della home */
 export interface HighPriorityTask {
   taskId: string;

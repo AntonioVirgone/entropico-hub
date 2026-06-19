@@ -17,7 +17,8 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
 - Spostamento dei task tra colonne con i pulsanti freccia.
 - **Backlog idee** (pagina dedicata `/idee`): memo per annotare nuovi progetti da realizzare anche in futuro. Entità autonoma, scollegata dalle todo-list: ogni idea ha titolo, descrizione, priorità e stato (Idea → In valutazione → Approvata → Promossa / Scartata). Da un'idea si può **promuovere a progetto** (crea un progetto precompilato, senza collegamenti automatici).
 - **Layout a web app** con menu di navigazione: sidebar su desktop, barra di navigazione su mobile. Sezioni: **Dashboard** (`/`) e **Backlog idee** (`/idee`).
-- **Documentazione progetti**: ogni progetto ha un archivio di documenti (Markdown o testo) con anteprima renderizzata. Creazione/modifica/eliminazione dalla UI **e** upload via **API protetta** (pensata per far caricare a Claude la doc generata, già assegnata al progetto).
+- **Documentazione progetti**: ogni progetto ha un archivio di documenti (Markdown o testo) con anteprima renderizzata. Creazione/modifica/eliminazione dalla UI, **import di un file `.md`/`.txt`** dal dialog, **e** upload/consultazione via **API a token personali** (pensata per far caricare e leggere a Claude la doc del progetto).
+- **Token API personali** (pagina `/token`): ogni utente genera i propri token Bearer (mostrati una sola volta, in DB solo l'hash) e li revoca quando vuole. L'API documentazione è autenticata con questi token e limitata ai progetti dell'utente.
 
 ---
 
@@ -30,6 +31,8 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
    - `migration_project_tech.sql` (metadati tecnici)
    - `migration_auth.sql` (autenticazione + RLS per-utente — vedi sotto)
    - `migration_project_documents.sql` (documentazione progetti)
+   - `migration_documents_unique_slug.sql` (unicità slug per progetto → upsert atomico)
+   - `migration_api_tokens.sql` (token API personali)
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
@@ -58,32 +61,50 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # oppure NEXT_PUBLIC_SUPABASE_ANON_KE
 
 # Solo per l'API documentazione (lato server, NON esporre):
 SUPABASE_SERVICE_ROLE_KEY=...   # Project Settings > API Keys > service_role
-DOCS_API_KEY=...                # segreto a tua scelta per autenticare l'API
 ```
+
+> L'autenticazione dell'API non usa più `DOCS_API_KEY`: ogni utente genera i
+> propri **token personali** dalla pagina **Token API** (`/token`) della web app.
 
 ## 3. Deploy su Vercel
 
 1. Importa il repository GitHub `AntonioVirgone/entropico-hub` su [vercel.com](https://vercel.com).
-2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Production + Preview). Per l'API documentazione aggiungi anche `SUPABASE_SERVICE_ROLE_KEY` e `DOCS_API_KEY`.
+2. In **Settings → Environment Variables** aggiungi `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Production + Preview). Per l'API documentazione aggiungi anche `SUPABASE_SERVICE_ROLE_KEY`.
 3. Deploy. Vercel rileva Next.js automaticamente (nessuna configurazione extra).
 
-## 4. API documentazione
+## 4. API documentazione (token personali)
 
-Carica un documento già assegnato a un progetto (utile per farlo fare a Claude):
+L'API è autenticata con un **token personale**: generalo dalla pagina **Token API**
+(`/token`) della web app — viene mostrato una sola volta — ed esportalo:
+
+```bash
+export EH_TOKEN=eh_xxxxxxxxxxxxxxxxxxxx
+```
+
+**Caricare un documento** (assegnato a un tuo progetto):
 
 ```bash
 curl -X POST "https://<dominio>/api/projects/<PROJECT_ID>/documents" \
-  -H "Authorization: Bearer $DOCS_API_KEY" \
+  -H "Authorization: Bearer $EH_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "title": "Architettura", "content": "# ...", "format": "markdown", "upsert": true }'
 ```
 
-- **Auth**: header `Authorization: Bearer <DOCS_API_KEY>`. Senza `DOCS_API_KEY` configurata l'endpoint è disabilitato (503).
-- **`upsert: true`**: sovrascrive il documento con lo stesso slug (derivato dal titolo); altrimenti ne crea uno nuovo.
-- **`GET`** sullo stesso path elenca i documenti del progetto.
-- La scrittura usa la *service role key* (bypassa l'RLS) **solo dopo** la verifica della chiave. Il `PROJECT_ID` è visibile nella pagina del progetto (pannello "Carica documenti via API").
+**Consultare i documenti**:
 
-> ⚠️ `DOCS_API_KEY` è una chiave a livello operatore: chi la possiede può scrivere su qualsiasi progetto. Per ambienti con più utenti, l'evoluzione naturale sono token API per-utente (v2).
+```bash
+# Elenco (aggiungi ?include=content per il contenuto completo)
+curl -s "https://<dominio>/api/projects/<PROJECT_ID>/documents" -H "Authorization: Bearer $EH_TOKEN"
+
+# Singolo documento per slug
+curl -s "https://<dominio>/api/projects/<PROJECT_ID>/documents/<slug>" -H "Authorization: Bearer $EH_TOKEN"
+```
+
+- **Auth**: header `Authorization: Bearer <token personale>`. Il token identifica l'utente; ogni operazione è limitata ai **suoi** progetti (progetti altrui → `404`).
+- **`upsert: true`**: sovrascrive (in modo atomico) il documento con lo stesso slug (derivato dal titolo); altrimenti ne crea uno nuovo.
+- La lettura/scrittura usa la *service role key* (bypassa l'RLS) **solo dopo** aver risolto il token e verificato l'ownership del progetto. Il `PROJECT_ID` e snippet pronti (incluso un loop per caricare tutti i `.md`) sono nel pannello "Carica e consulta i documenti via API" della pagina del progetto.
+
+> 🔒 I token sono salvati solo come **hash SHA-256**; il valore in chiaro è mostrato una sola volta. Revoca un token in qualsiasi momento dalla pagina Token API.
 
 ---
 
@@ -96,7 +117,9 @@ src/
     page.tsx                  # dashboard progetti
     login/page.tsx            # accesso (email+password)
     idee/page.tsx             # Backlog idee (nuovi progetti)
+    token/page.tsx            # Token API personali
     projects/[id]/page.tsx    # board Kanban del progetto
+    api/projects/[id]/documents/  # API doc (route + [slug]) a token personali
     layout.tsx, globals.css   # shell con sidebar/menu (auth-aware)
   components/
     ui/                       # primitive shadcn/ui
@@ -105,10 +128,13 @@ src/
     task-card.tsx, task-dialog.tsx, kanban-board.tsx
     idea-card.tsx, idea-dialog.tsx
   lib/
-    supabase/                 # client server/browser + env + proxy (helper)
+    supabase/                 # client server/browser/service + env + proxy (helper)
     queries.ts                # letture
     actions.ts                # Server Actions (mutazioni)
     auth-actions.ts           # logout
+    token-actions.ts          # crea/revoca token API
+    api-token.ts              # generazione/hash token (server)
+    api-auth.ts               # auth Route API via token personale
     types.ts                  # tipi e costanti
     nav.ts                    # voci del menu principale
 supabase/
@@ -118,7 +144,6 @@ supabase/
 
 ## Idee per le prossime versioni
 
-- Storage documentazione per progetto + API di upload protetta.
 - Drag & drop dei task tra colonne.
 - Scadenze, etichette, ricerca/filtri.
 - Realtime (Supabase Realtime) per aggiornamenti live.
