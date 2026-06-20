@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { FolderPlus, Plus } from "lucide-react";
 
 import { getHighPriorityActiveTasks, getProjects, getTaskCounts } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
@@ -71,7 +71,8 @@ export default async function DashboardPage() {
 
       {/* Griglia progetti attivi */}
       {active.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-16 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
+          <FolderPlus className="h-8 w-8 text-muted-foreground/50" />
           <p className="text-muted-foreground">
             Nessun progetto attivo. Creane uno per iniziare.
           </p>

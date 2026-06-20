@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Share2 } from "lucide-react";
+import { ArrowRight, Share2 } from "lucide-react";
 
 import type { HighPriorityTask } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ export function HighPriorityTasks({ tasks }: { tasks: HighPriorityTask[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-xl border shadow-sm">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40">
@@ -91,9 +91,9 @@ export function HighPriorityTasks({ tasks }: { tasks: HighPriorityTask[] }) {
               <td className="px-4 py-3 text-right">
                 <Link
                   href={`/projects/${t.projectId}`}
-                  className="text-sm font-medium underline-offset-2 hover:underline"
+                  className="inline-flex items-center gap-1 text-sm font-medium underline-offset-2 hover:underline"
                 >
-                  Apri board →
+                  Apri board <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </td>
             </tr>

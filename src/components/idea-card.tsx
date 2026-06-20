@@ -99,7 +99,7 @@ export function IdeaCard({ idea }: { idea: ProjectIdea }) {
   }
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="truncate">{idea.title}</CardTitle>

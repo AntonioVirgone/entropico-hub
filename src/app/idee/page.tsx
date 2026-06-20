@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Lightbulb, Plus } from "lucide-react";
 
 import { getProjectIdeas } from "@/lib/queries";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,8 @@ export default async function IdeasPage() {
       </div>
 
       {ideas.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-16 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-16 text-center">
+          <Lightbulb className="h-8 w-8 text-muted-foreground/50" />
           <p className="text-muted-foreground">
             Nessuna idea nel backlog. Annota il prossimo progetto da realizzare.
           </p>

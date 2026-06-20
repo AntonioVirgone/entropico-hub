@@ -97,7 +97,7 @@ export function TaskCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "p-3 space-y-2 transition-shadow",
+        "p-3 space-y-2 hover:shadow-md",
         isDragging && "opacity-40",
         overlay && "shadow-xl rotate-1 opacity-95"
       )}
