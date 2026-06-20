@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 
-import { deleteDocument } from "@/lib/actions";
+import { deleteDocument, toggleDocumentCompleted } from "@/lib/actions";
 import type { ProjectDocument } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,23 @@ function DocumentRow({
   projectId: string;
 }) {
   const router = useRouter();
+  const [completed, setCompleted] = useState(document.is_completed);
   const [pending, setPending] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  async function handleToggleCompleted() {
+    setToggling(true);
+    const next = !completed;
+    setCompleted(next);
+    try {
+      await toggleDocumentCompleted(document.id, projectId, next);
+      router.refresh();
+    } catch {
+      setCompleted(!next);
+    } finally {
+      setToggling(false);
+    }
+  }
 
   async function handleDelete() {
     if (!confirm(`Eliminare il documento "${document.title}"?`)) return;
@@ -42,14 +58,26 @@ function DocumentRow({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3">
-      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+    <div className={`flex items-center gap-3 rounded-lg border bg-background px-4 py-3 ${completed ? "opacity-60" : ""}`}>
+      <button
+        type="button"
+        onClick={handleToggleCompleted}
+        disabled={toggling}
+        aria-label={completed ? "Segna come non completato" : "Segna come completato"}
+        className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+      >
+        {completed ? (
+          <CheckCircle2 className="h-4 w-4 text-primary" />
+        ) : (
+          <Circle className="h-4 w-4" />
+        )}
+      </button>
       <DocumentView
         document={document}
         trigger={
           <button
             type="button"
-            className="min-w-0 flex-1 text-left text-sm font-medium hover:underline"
+            className={`min-w-0 flex-1 text-left text-sm font-medium hover:underline ${completed ? "line-through" : ""}`}
           >
             <span className="truncate">{document.title}</span>
           </button>
@@ -58,6 +86,11 @@ function DocumentRow({
       {document.source === "api" && (
         <Badge variant="secondary" className="shrink-0 text-[10px]">
           API
+        </Badge>
+      )}
+      {completed && (
+        <Badge variant="outline" className="shrink-0 text-[10px]">
+          Completato
         </Badge>
       )}
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">

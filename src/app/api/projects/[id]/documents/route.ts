@@ -64,6 +64,8 @@ export async function POST(
     return json({ error: "Progetto non trovato." }, 404);
   }
 
+  const is_completed = body.is_completed === true;
+
   // Upsert atomico su (project_id, slug) grazie al vincolo UNIQUE.
   if (upsert) {
     // Pre-check per distinguere creazione da aggiornamento nel flag `created`.
@@ -78,10 +80,10 @@ export async function POST(
     const { data, error } = await supabase
       .from("project_documents")
       .upsert(
-        { project_id: projectId, title, slug, content, format, source: "api" },
+        { project_id: projectId, title, slug, content, format, source: "api", is_completed },
         { onConflict: "project_id,slug" }
       )
-      .select("id, project_id, title, slug, format, source, updated_at")
+      .select("id, project_id, title, slug, format, source, is_completed, updated_at")
       .single();
 
     if (error) return json({ error: error.message }, 500);
@@ -91,8 +93,8 @@ export async function POST(
 
   const { data, error } = await supabase
     .from("project_documents")
-    .insert({ project_id: projectId, title, slug, content, format, source: "api" })
-    .select("id, project_id, title, slug, format, source, updated_at")
+    .insert({ project_id: projectId, title, slug, content, format, source: "api", is_completed })
+    .select("id, project_id, title, slug, format, source, is_completed, updated_at")
     .single();
 
   if (error) return json({ error: error.message }, 500);
@@ -116,14 +118,20 @@ export async function GET(
 
   const withContent = request.nextUrl.searchParams.get("include") === "content";
   const columns = withContent
-    ? "id, title, slug, content, format, source, created_at, updated_at"
-    : "id, title, slug, format, source, created_at, updated_at";
+    ? "id, title, slug, content, format, source, is_completed, created_at, updated_at"
+    : "id, title, slug, format, source, is_completed, created_at, updated_at";
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("project_documents")
     .select(columns)
     .eq("project_id", projectId)
     .order("updated_at", { ascending: false });
+
+  const completedParam = request.nextUrl.searchParams.get("completed");
+  if (completedParam === "true") query = query.eq("is_completed", true);
+  else if (completedParam === "false") query = query.eq("is_completed", false);
+
+  const { data, error } = await query;
 
   if (error) return json({ error: error.message }, 500);
   return json({ documents: data ?? [] }, 200);

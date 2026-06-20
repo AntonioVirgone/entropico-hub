@@ -57,6 +57,7 @@ export function DocumentDialog({
   const [format, setFormat] = useState<DocumentFormat>(
     document?.format ?? "markdown"
   );
+  const [isCompleted, setIsCompleted] = useState(document?.is_completed ?? false);
   const [pending, setPending] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -64,6 +65,7 @@ export function DocumentDialog({
     setTitle(document?.title ?? "");
     setContent(document?.content ?? "");
     setFormat(document?.format ?? "markdown");
+    setIsCompleted(document?.is_completed ?? false);
     setImportError(null);
   }
 
@@ -180,6 +182,26 @@ export function DocumentDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {isEdit && (
+            <div className="flex items-center gap-2">
+              <input
+                type="hidden"
+                name="is_completed"
+                value={isCompleted ? "true" : "false"}
+              />
+              <input
+                id="is_completed"
+                type="checkbox"
+                checked={isCompleted}
+                onChange={(e) => setIsCompleted(e.target.checked)}
+                className="h-4 w-4 rounded border-input accent-primary"
+              />
+              <Label htmlFor="is_completed" className="cursor-pointer font-normal">
+                Documento completato
+              </Label>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="content">Contenuto</Label>
