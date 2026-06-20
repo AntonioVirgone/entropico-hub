@@ -64,8 +64,17 @@ export async function POST(
     return json({ error: "Progetto non trovato." }, 404);
   }
 
-  // Upsert atomico su (project_id, slug) grazie all'indice univoco.
+  // Upsert atomico su (project_id, slug) grazie al vincolo UNIQUE.
   if (upsert) {
+    // Pre-check per distinguere creazione da aggiornamento nel flag `created`.
+    const { data: existing } = await supabase
+      .from("project_documents")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("slug", slug)
+      .maybeSingle();
+    const created = !existing;
+
     const { data, error } = await supabase
       .from("project_documents")
       .upsert(
@@ -77,7 +86,7 @@ export async function POST(
 
     if (error) return json({ error: error.message }, 500);
     revalidatePath(`/projects/${projectId}`);
-    return json({ document: data }, 200);
+    return json({ document: data, created }, created ? 201 : 200);
   }
 
   const { data, error } = await supabase
