@@ -1,4 +1,4 @@
-import { LayoutDashboard, Lightbulb, type LucideIcon } from "lucide-react";
+import { KeyRound, LayoutDashboard, Lightbulb, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -10,6 +10,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/idee", label: "Backlog idee", icon: Lightbulb },
+  { href: "/token", label: "Token API", icon: KeyRound },
 ];
 
 /** Una voce è attiva se il pathname coincide (home) o ne è un sotto-percorso. */

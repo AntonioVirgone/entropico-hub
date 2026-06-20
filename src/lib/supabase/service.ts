@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 /**
  * Client Supabase con service role key: BYPASSA l'RLS.
  * Usare ESCLUSIVAMENTE in contesti server fidati e già autorizzati
- * (es. l'API di upload documentazione dopo la verifica della DOCS_API_KEY).
- * Non importare mai in codice che gira nel browser.
+ * (es. l'API documentazione dopo la verifica del token personale e
+ * dell'ownership del progetto). Non importare mai in codice che gira nel browser.
  */
 export function createSupabaseServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

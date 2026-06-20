@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveProjectColor } from "@/lib/tech-colors";
 import type {
+  ApiToken,
   HighPriorityTask,
   Project,
   ProjectDocument,
@@ -8,6 +9,18 @@ import type {
   Task,
   TaskStatus,
 } from "@/lib/types";
+
+/** Token API dell'utente loggato (mai hash né valore in chiaro). */
+export async function getApiTokens(): Promise<ApiToken[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("api_tokens")
+    .select("id, name, token_prefix, last_used_at, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ApiToken[];
+}
 
 export async function getProjectDocuments(
   projectId: string
