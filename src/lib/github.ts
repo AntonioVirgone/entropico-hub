@@ -29,6 +29,70 @@ export class GithubError extends Error {
   }
 }
 
+/** Legge il messaggio d'errore da una risposta GitHub e lancia un GithubError. */
+async function failGithub(res: Response): Promise<never> {
+  let detail = "";
+  try {
+    const body = (await res.json()) as { message?: string };
+    detail = body.message ?? "";
+  } catch {
+    // corpo non JSON
+  }
+  if (res.status === 401) throw new GithubError("Token GitHub non valido o scaduto.", 401);
+  if (res.status === 403)
+    throw new GithubError(detail || "Permessi GitHub insufficienti.", 403);
+  if (res.status === 404)
+    throw new GithubError(detail || "Repository o riferimento non trovato.", 404);
+  throw new GithubError(detail || `Errore GitHub (HTTP ${res.status}).`, res.status);
+}
+
+/** Branch di default del repository (es. "main"). */
+export async function getRepoDefaultBranch(
+  token: string,
+  fullName: string
+): Promise<string> {
+  const res = await fetch(`${GITHUB_API}/repos/${fullName}`, {
+    headers: githubHeaders(token),
+    cache: "no-store",
+  });
+  if (!res.ok) await failGithub(res);
+  const data = (await res.json()) as { default_branch?: string };
+  return data.default_branch ?? "main";
+}
+
+/**
+ * Crea un branch a partire da `fromBranch`. Idempotente: se il branch esiste
+ * già, ritorna { created: false } senza errore.
+ */
+export async function createBranch(
+  token: string,
+  fullName: string,
+  newBranch: string,
+  fromBranch: string
+): Promise<{ created: boolean }> {
+  // SHA del branch base
+  const refRes = await fetch(
+    `${GITHUB_API}/repos/${fullName}/git/ref/heads/${encodeURIComponent(fromBranch)}`,
+    { headers: githubHeaders(token), cache: "no-store" }
+  );
+  if (!refRes.ok) await failGithub(refRes);
+  const refData = (await refRes.json()) as { object?: { sha?: string } };
+  const sha = refData.object?.sha;
+  if (!sha) throw new GithubError("Impossibile leggere lo SHA del branch base.", 500);
+
+  const createRes = await fetch(`${GITHUB_API}/repos/${fullName}/git/refs`, {
+    method: "POST",
+    headers: githubHeaders(token),
+    cache: "no-store",
+    body: JSON.stringify({ ref: `refs/heads/${newBranch}`, sha }),
+  });
+
+  // 422 = il riferimento esiste già: trattalo come "non creato" (idempotente).
+  if (createRes.status === 422) return { created: false };
+  if (!createRes.ok) await failGithub(createRes);
+  return { created: true };
+}
+
 /** Login GitHub dell'utente proprietario del token (per mostrare "connesso come …"). */
 export async function getGithubLogin(token: string): Promise<string | null> {
   const res = await fetch(`${GITHUB_API}/user`, {

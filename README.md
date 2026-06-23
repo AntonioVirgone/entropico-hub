@@ -9,6 +9,7 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
 
 - **Autenticazione** email+password **o GitHub (OAuth)** (Supabase Auth). Accesso a invito (account creati dall'amministratore, niente self-signup). Ogni utente vede e gestisce solo i propri dati (RLS per-utente).
 - **Creazione repository GitHub dal progetto**: chi accede con GitHub può, alla creazione di un progetto, generare anche il repository remoto sul proprio account (visibilità privata/pubblica a scelta, inizializzato con README e descrizione). Il link al repo è mostrato su card e header del progetto.
+- **Agente AI sui task (assistito)**: ogni task ha un tasto "Agente AI" che, in base al tipo (Feature → branch `feature/…`, Bug → `fix/…`, Analisi → `docs/…`), crea il branch sul repo del progetto e genera un **prompt pronto** da incollare in Claude Code (in locale, sotto il proprio abbonamento). Nessun costo a consumo: l'app non chiama modelli a pagamento.
 - Dashboard con elenco progetti (nome, descrizione, colore, stato attivo/archiviato, avanzamento task).
 - Creazione / modifica / archiviazione / eliminazione progetti.
 - **Metadati tecnici** per progetto: framework, linguaggio, tecnologie connesse (Supabase, Vercel, Render…) e strumenti (Docker, GitHub…). Catalogo predefinito con possibilità di aggiungere valori custom; visualizzati come badge su card e header del progetto.
@@ -35,6 +36,7 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
    - `migration_documents_unique_slug.sql` (unicità slug per progetto → upsert atomico)
    - `migration_api_tokens.sql` (token API personali)
    - `migration_github.sql` (login GitHub + creazione repository — vedi §5)
+   - `migration_task_type_analysis.sql` (tipo task "analisi" per l'agente AI)
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
@@ -208,6 +210,24 @@ Esegui [`migration_github.sql`](supabase/migration_github.sql) nel SQL Editor.
 > per un irrobustimento futuro si può cifrarlo con Supabase Vault. Revoca
 > l'accesso da **GitHub → Settings → Applications** quando vuoi.
 
+## 6. Agente AI sui task (assistito)
+
+Modalità **Fase 1**: l'app non chiama nessun modello a pagamento. Dal tasto
+**"Agente AI"** su un task:
+
+1. In base al tipo di task viene creato (se il progetto ha un repo collegato e
+   sei connesso a GitHub) il branch dedicato: `feature/<slug>` (Feature),
+   `fix/<slug>` (Bug), `docs/<slug>` (Analisi). La creazione è idempotente.
+2. Viene generato un **prompt pronto** con contesto progetto, stack, task e
+   istruzioni operative, da **copiare e incollare in Claude Code** (eseguito in
+   locale, sotto il tuo abbonamento Claude). L'agente lavora sul branch, poi
+   pushi e apri una PR.
+
+Così l'integrazione resta **gratuita** (l'unico "costo" è il tuo abbonamento
+Claude per Claude Code). L'automazione completa "un clic → branch + PR" via
+**Anthropic Managed Agents** è una possibile evoluzione (Fase 2), ma è API a
+consumo e quindi a pagamento.
+
 ---
 
 ## Struttura
@@ -229,6 +249,7 @@ src/
     app-sidebar.tsx, mobile-nav.tsx   # navigazione + logout
     project-card.tsx, project-dialog.tsx
     github-auth-button.tsx    # login/collegamento GitHub (OAuth)
+    agent-task-dialog.tsx     # "Agente AI": branch + prompt per Claude Code
     task-card.tsx, task-dialog.tsx, kanban-board.tsx
     idea-card.tsx, idea-dialog.tsx
   lib/
@@ -239,7 +260,9 @@ src/
     token-actions.ts          # crea/revoca token API
     api-token.ts              # generazione/hash token (server)
     api-auth.ts               # auth Route API via token personale
-    github.ts                 # client API GitHub (creazione repo)
+    github.ts                 # client API GitHub (repo + branch)
+    agent-actions.ts          # prepara branch + prompt (modalità assistita)
+    agent-prompt.ts           # costruzione del prompt per Claude Code
     types.ts                  # tipi e costanti
     nav.ts                    # voci del menu principale
 supabase/

@@ -1,7 +1,7 @@
 export type ProjectStatus = "active" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
-export type TaskType = "feature" | "bug";
+export type TaskType = "feature" | "bug" | "analysis";
 export type IdeaStatus =
   | "idea"
   | "valutazione"
@@ -60,6 +60,7 @@ export const TASK_PRIORITIES: { value: TaskPriority; label: string }[] = [
 export const TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: "feature", label: "Feature" },
   { value: "bug", label: "Bug" },
+  { value: "analysis", label: "Analisi" },
 ];
 
 /**

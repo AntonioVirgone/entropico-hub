@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Bot,
   Bug,
   ChevronLeft,
   ChevronRight,
+  FileSearch,
   GripVertical,
   Pencil,
   Share2,
@@ -28,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TaskDialog } from "@/components/task-dialog";
+import { AgentTaskDialog } from "@/components/agent-task-dialog";
 
 const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "done"];
 
@@ -127,13 +130,20 @@ export function TaskCard({
             {task.title}
           </p>
           <div className="flex shrink-0 items-center gap-1">
-            {/* Badge tipo: Bug visibile sempre, Feature solo se non "done" */}
+            {/* Badge tipo del task */}
             {task.type === "bug" ? (
               <Badge
                 variant="secondary"
                 className="bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 gap-1"
               >
                 <Bug className="h-3 w-3" /> Bug
+              </Badge>
+            ) : task.type === "analysis" ? (
+              <Badge
+                variant="secondary"
+                className="bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 gap-1"
+              >
+                <FileSearch className="h-3 w-3" /> Analisi
               </Badge>
             ) : (
               <Badge
@@ -216,6 +226,22 @@ export function TaskCard({
             </Button>
           </div>
           <div className="flex items-center gap-1">
+            <AgentTaskDialog
+              taskId={task.id}
+              projectId={currentProjectId}
+              taskType={task.type}
+              trigger={
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  aria-label="Agente AI"
+                  title="Agente AI"
+                >
+                  <Bot />
+                </Button>
+              }
+            />
             <TaskDialog
               projectId={currentProjectId}
               task={task}
