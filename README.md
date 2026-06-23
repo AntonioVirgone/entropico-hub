@@ -113,28 +113,95 @@ curl -s "https://<dominio>/api/projects/<PROJECT_ID>/documents/<slug>" -H "Autho
 Permette di **accedere con GitHub** e, alla creazione di un progetto, di
 **generare il repository remoto** sull'account dell'utente.
 
-**Configurazione (una tantum):**
+### Come funziona il flusso
 
-1. **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**:
-   - *Homepage URL*: il dominio dell'app (es. `https://<dominio>`).
-   - *Authorization callback URL*: l'URL di callback **di Supabase**
-     `https://<project-ref>.supabase.co/auth/v1/callback`.
-   - Copia **Client ID** e genera un **Client Secret**.
-2. **Supabase → Authentication → Providers → GitHub**: abilita il provider e
-   incolla Client ID/Secret. In **Authentication → URL Configuration** aggiungi
-   il dominio dell'app (e `http://localhost:3000` per lo sviluppo) tra i
-   *Redirect URLs*.
-3. Esegui la migration [`migration_github.sql`](supabase/migration_github.sql).
+```
+Utente → "Accedi con GitHub" → GitHub (login/consenso)
+       → torna a SUPABASE (.../auth/v1/callback)   ← callback dell'OAuth App
+       → Supabase crea la sessione e rimanda alla TUA app (/auth/callback)
+       → la tua app salva il token GitHub e va in dashboard
+```
 
-**Come funziona:**
+Ci sono **due callback diversi**, da non confondere:
 
-- Il pulsante **"Accedi con GitHub"** avvia l'OAuth con scope `repo` (serve per
-  creare repo, anche privati). Al ritorno, la route `/auth/callback` scambia il
-  codice per la sessione e **cattura il token GitHub** — Supabase lo espone solo
-  in quel momento — salvandolo in `github_credentials` (per-utente, RLS).
+- `https://<project-ref>.supabase.co/auth/v1/callback` → va messo **nella OAuth
+  App di GitHub**. È gestito da Supabase, non lo crei tu.
+- `https://<tuo-dominio>/auth/callback` → è la route della **tua** app (già
+  inclusa); va messo nei *Redirect URLs* di Supabase.
+
+### Passo 1 — Trova il tuo `<project-ref>`
+
+È il sottodominio del tuo URL Supabase (`NEXT_PUBLIC_SUPABASE_URL`):
+
+```
+https://abcd1234efgh5678.supabase.co
+        └──────┬───────┘
+          project-ref   → callback: https://abcd1234efgh5678.supabase.co/auth/v1/callback
+```
+
+Lo trovi già pronto anche in **Supabase → Authentication → Providers → GitHub**
+(campo *Callback URL (for OAuth)*): copialo da lì per essere certo.
+
+### Passo 2 — Crea la OAuth App su GitHub
+
+1. **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**
+   (`https://github.com/settings/developers`).
+2. Compila:
+
+   | Campo | Valore |
+   |---|---|
+   | **Application name** | Es. `Entropico Hub` (lo vede l'utente nel consenso) |
+   | **Homepage URL** | Il dominio dell'app, es. `https://<tuo-dominio>` (in locale `http://localhost:3000`) |
+   | **Authorization callback URL** | **Il callback di Supabase** del Passo 1: `https://<project-ref>.supabase.co/auth/v1/callback` |
+   | **Enable Device Flow** | Lascia deselezionato |
+
+3. **Register application** → copia il **Client ID** e premi **Generate a new
+   client secret** per ottenere il **Client Secret** (mostrato una sola volta).
+
+> ⚠️ Serve una **OAuth App**, *non* una **GitHub App** (sono voci diverse in
+> *Developer settings*): le GitHub Apps hanno token che scadono e un modello di
+> permessi differente.
+
+### Passo 3 — Incolla le chiavi in Supabase
+
+**Supabase → Authentication → Providers → GitHub**: attiva *Enable Sign in with
+GitHub*, incolla **Client ID** e **Client Secret**, salva.
+
+### Passo 4 — Redirect URLs della tua app
+
+In **Supabase → Authentication → URL Configuration**:
+
+- **Site URL**: `https://<tuo-dominio>`.
+- **Redirect URLs** (aggiungi entrambi):
+  - `https://<tuo-dominio>/auth/callback`
+  - `http://localhost:3000/auth/callback` (sviluppo locale)
+
+### Passo 5 — Migration
+
+Esegui [`migration_github.sql`](supabase/migration_github.sql) nel SQL Editor.
+
+### Dettagli e comportamento
+
+- Il pulsante **"Accedi con GitHub"** avvia l'OAuth con scope `repo` (necessario
+  per creare repo, anche privati; nel consenso GitHub appare come *"Full control
+  of private repositories"*). Lo scope è richiesto dal codice, non si configura
+  nella OAuth App. Al ritorno, la route `/auth/callback` scambia il codice per la
+  sessione e **cattura il token GitHub** — Supabase lo espone solo in quel
+  momento — salvandolo in `github_credentials` (per-utente, RLS).
 - Nel dialog **Nuovo progetto**, se sei collegato a GitHub, spunti *"Crea anche
   il repository su GitHub"*, scegli nome e visibilità: l'app crea il repo via API
   GitHub (`POST /user/repos`, `auto_init`) e ne salva l'URL sul progetto.
+- **Una sola OAuth App** copre locale e produzione (il callback punta sempre allo
+  stesso progetto Supabase); a variare sono solo i *Redirect URLs* del Passo 4.
+  Se usi **due progetti Supabase** (dev e prod separati), servono **due** OAuth App,
+  una per `project-ref`.
+
+### Troubleshooting
+
+- `redirect_uri mismatch` da GitHub → l'*Authorization callback URL* della OAuth
+  App non combacia con quello di Supabase: ricopialo dal pannello del provider.
+- Atterri su `/login?error=oauth` dopo aver autorizzato → manca
+  `https://<tuo-dominio>/auth/callback` nei *Redirect URLs* di Supabase (Passo 4).
 
 > 🔒 Il token GitHub è letto **solo lato server** e non è mai inviato al browser.
 > È memorizzato in chiaro nella tabella `github_credentials` (isolata via RLS):
