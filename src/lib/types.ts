@@ -21,6 +21,9 @@ export interface Project {
   language: string | null;
   technologies: string[];
   tools: string[];
+  // Collegamento al repository GitHub (se creato/associato)
+  github_repo_url: string | null;
+  github_repo_full_name: string | null;
   created_at: string;
   updated_at: string;
 }

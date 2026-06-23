@@ -7,7 +7,8 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
 
 ## Funzionalità
 
-- **Autenticazione** email+password (Supabase Auth). Accesso a invito (account creati dall'amministratore, niente self-signup). Ogni utente vede e gestisce solo i propri dati (RLS per-utente).
+- **Autenticazione** email+password **o GitHub (OAuth)** (Supabase Auth). Accesso a invito (account creati dall'amministratore, niente self-signup). Ogni utente vede e gestisce solo i propri dati (RLS per-utente).
+- **Creazione repository GitHub dal progetto**: chi accede con GitHub può, alla creazione di un progetto, generare anche il repository remoto sul proprio account (visibilità privata/pubblica a scelta, inizializzato con README e descrizione). Il link al repo è mostrato su card e header del progetto.
 - Dashboard con elenco progetti (nome, descrizione, colore, stato attivo/archiviato, avanzamento task).
 - Creazione / modifica / archiviazione / eliminazione progetti.
 - **Metadati tecnici** per progetto: framework, linguaggio, tecnologie connesse (Supabase, Vercel, Render…) e strumenti (Docker, GitHub…). Catalogo predefinito con possibilità di aggiungere valori custom; visualizzati come badge su card e header del progetto.
@@ -33,6 +34,7 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
    - `migration_project_documents.sql` (documentazione progetti)
    - `migration_documents_unique_slug.sql` (unicità slug per progetto → upsert atomico)
    - `migration_api_tokens.sql` (token API personali)
+   - `migration_github.sql` (login GitHub + creazione repository — vedi §5)
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
@@ -106,6 +108,39 @@ curl -s "https://<dominio>/api/projects/<PROJECT_ID>/documents/<slug>" -H "Autho
 
 > 🔒 I token sono salvati solo come **hash SHA-256**; il valore in chiaro è mostrato una sola volta. Revoca un token in qualsiasi momento dalla pagina Token API.
 
+## 5. Login e repository GitHub
+
+Permette di **accedere con GitHub** e, alla creazione di un progetto, di
+**generare il repository remoto** sull'account dell'utente.
+
+**Configurazione (una tantum):**
+
+1. **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**:
+   - *Homepage URL*: il dominio dell'app (es. `https://<dominio>`).
+   - *Authorization callback URL*: l'URL di callback **di Supabase**
+     `https://<project-ref>.supabase.co/auth/v1/callback`.
+   - Copia **Client ID** e genera un **Client Secret**.
+2. **Supabase → Authentication → Providers → GitHub**: abilita il provider e
+   incolla Client ID/Secret. In **Authentication → URL Configuration** aggiungi
+   il dominio dell'app (e `http://localhost:3000` per lo sviluppo) tra i
+   *Redirect URLs*.
+3. Esegui la migration [`migration_github.sql`](supabase/migration_github.sql).
+
+**Come funziona:**
+
+- Il pulsante **"Accedi con GitHub"** avvia l'OAuth con scope `repo` (serve per
+  creare repo, anche privati). Al ritorno, la route `/auth/callback` scambia il
+  codice per la sessione e **cattura il token GitHub** — Supabase lo espone solo
+  in quel momento — salvandolo in `github_credentials` (per-utente, RLS).
+- Nel dialog **Nuovo progetto**, se sei collegato a GitHub, spunti *"Crea anche
+  il repository su GitHub"*, scegli nome e visibilità: l'app crea il repo via API
+  GitHub (`POST /user/repos`, `auto_init`) e ne salva l'URL sul progetto.
+
+> 🔒 Il token GitHub è letto **solo lato server** e non è mai inviato al browser.
+> È memorizzato in chiaro nella tabella `github_credentials` (isolata via RLS):
+> per un irrobustimento futuro si può cifrarlo con Supabase Vault. Revoca
+> l'accesso da **GitHub → Settings → Applications** quando vuoi.
+
 ---
 
 ## Struttura
@@ -115,7 +150,8 @@ src/
   proxy.ts                    # protezione route + refresh sessione (ex-middleware)
   app/
     page.tsx                  # dashboard progetti
-    login/page.tsx            # accesso (email+password)
+    login/page.tsx            # accesso (email+password o GitHub)
+    auth/callback/route.ts    # callback OAuth (cattura il token GitHub)
     idee/page.tsx             # Backlog idee (nuovi progetti)
     token/page.tsx            # Token API personali
     projects/[id]/page.tsx    # board Kanban del progetto
@@ -125,6 +161,7 @@ src/
     ui/                       # primitive shadcn/ui
     app-sidebar.tsx, mobile-nav.tsx   # navigazione + logout
     project-card.tsx, project-dialog.tsx
+    github-auth-button.tsx    # login/collegamento GitHub (OAuth)
     task-card.tsx, task-dialog.tsx, kanban-board.tsx
     idea-card.tsx, idea-dialog.tsx
   lib/
@@ -135,6 +172,7 @@ src/
     token-actions.ts          # crea/revoca token API
     api-token.ts              # generazione/hash token (server)
     api-auth.ts               # auth Route API via token personale
+    github.ts                 # client API GitHub (creazione repo)
     types.ts                  # tipi e costanti
     nav.ts                    # voci del menu principale
 supabase/

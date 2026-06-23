@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, GitBranch, Pencil, Trash2 } from "lucide-react";
 
 import { deleteProject, setProjectStatus } from "@/lib/actions";
 import type { Project } from "@/lib/types";
@@ -93,9 +93,23 @@ export function ProjectCard({
         <TechBadges project={project} compact />
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2">
-        <Button asChild size="sm">
-          <Link href={`/projects/${project.id}`}>Apri board</Link>
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button asChild size="sm">
+            <Link href={`/projects/${project.id}`}>Apri board</Link>
+          </Button>
+          {project.github_repo_url && (
+            <Button asChild size="icon" variant="ghost" aria-label="Apri repository GitHub">
+              <a
+                href={project.github_repo_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={project.github_repo_full_name ?? "Repository GitHub"}
+              >
+                <GitBranch />
+              </a>
+            </Button>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <ProjectDialog
             project={project}
