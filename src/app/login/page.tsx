@@ -48,9 +48,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-muted/40 to-background px-4">
+      <Card className="w-full max-w-sm shadow-lg">
+        <CardHeader className="items-center text-center">
+          <span className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">
+            E
+          </span>
           <CardTitle>Entropico Hub</CardTitle>
           <CardDescription>Accedi per continuare.</CardDescription>
         </CardHeader>

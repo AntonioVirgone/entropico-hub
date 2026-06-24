@@ -23,7 +23,7 @@ export function StaleTasksAlert({ tasks }: { tasks: HighPriorityTask[] }) {
   if (dismissed || staleTasks.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-4">
+    <div className="animate-in fade-in slide-in-from-top-1 rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm duration-300 dark:border-amber-800 dark:bg-amber-950/40">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />

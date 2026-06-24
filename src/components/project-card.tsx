@@ -65,8 +65,10 @@ export function ProjectCard({
     }
   }
 
+  const progress = total === 0 ? 0 : Math.round((done / total) * 100);
+
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -85,11 +87,22 @@ export function ProjectCard({
         )}
       </CardHeader>
       <CardContent className="flex-1 space-y-3">
-        <p className="text-sm text-muted-foreground">
-          {total === 0
-            ? "Nessun task"
-            : `${done}/${total} task completati`}
-        </p>
+        {total === 0 ? (
+          <p className="text-sm text-muted-foreground">Nessun task</p>
+        ) : (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>{done}/{total} task completati</span>
+              <span className="font-medium tabular-nums">{progress}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        )}
         <TechBadges project={project} compact />
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2">

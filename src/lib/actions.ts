@@ -507,11 +507,27 @@ export async function updateDocument(
   const content = String(formData.get("content") ?? "");
   const format = (String(formData.get("format") ?? "markdown") ||
     "markdown") as DocumentFormat;
+  const is_completed = formData.get("is_completed") === "true";
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("project_documents")
-    .update({ title, slug: slugify(title), content, format })
+    .update({ title, slug: slugify(title), content, format, is_completed })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function toggleDocumentCompleted(
+  id: string,
+  projectId: string,
+  is_completed: boolean
+) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("project_documents")
+    .update({ is_completed })
     .eq("id", id);
 
   if (error) throw new Error(error.message);

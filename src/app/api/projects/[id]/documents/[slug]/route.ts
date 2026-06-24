@@ -30,7 +30,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("project_documents")
-    .select("id, project_id, title, slug, content, format, source, created_at, updated_at")
+    .select("id, project_id, title, slug, content, format, source, is_completed, created_at, updated_at")
     .eq("project_id", projectId)
     .eq("slug", slug)
     .maybeSingle();

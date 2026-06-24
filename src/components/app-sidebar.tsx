@@ -14,8 +14,11 @@ export function AppSidebar({ userEmail }: { userEmail: string }) {
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-card md:flex">
-      <div className="border-b px-5 py-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
+      <div className="flex items-center gap-2.5 border-b px-5 py-4">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+          E
+        </span>
+        <Link href="/" className="text-base font-semibold tracking-tight">
           Entropico Hub
         </Link>
       </div>
@@ -27,12 +30,15 @@ export function AppSidebar({ userEmail }: { userEmail: string }) {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 active
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
+              {active && (
+                <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+              )}
               <Icon className="h-4 w-4 shrink-0" />
               {label}
             </Link>

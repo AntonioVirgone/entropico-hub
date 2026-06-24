@@ -98,6 +98,7 @@ export interface ProjectDocument {
   content: string;
   format: DocumentFormat;
   source: DocumentSource;
+  is_completed: boolean;
   created_at: string;
   updated_at: string;
 }
