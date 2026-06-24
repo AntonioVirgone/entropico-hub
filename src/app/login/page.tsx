@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { GithubAuthButton } from "@/components/github-auth-button";
 import {
   Card,
   CardContent,
@@ -88,6 +89,14 @@ export default function LoginPage() {
               Accesso su invito. Gli account sono creati dall&apos;amministratore.
             </p>
           </form>
+
+          <div className="my-4 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">oppure</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <GithubAuthButton label="Accedi con GitHub" next="/" className="w-full" />
         </CardContent>
       </Card>
     </div>

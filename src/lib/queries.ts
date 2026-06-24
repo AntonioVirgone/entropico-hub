@@ -36,6 +36,22 @@ export async function getProjectDocuments(
   return (data ?? []) as ProjectDocument[];
 }
 
+/**
+ * Stato del collegamento GitHub dell'utente loggato.
+ * Non seleziona mai il token: solo se esiste e con quale login.
+ */
+export async function getGithubConnection(): Promise<{
+  connected: boolean;
+  login: string | null;
+}> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("github_credentials")
+    .select("github_login")
+    .maybeSingle();
+  return { connected: !!data, login: (data?.github_login as string) ?? null };
+}
+
 export async function getCurrentUserEmail(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
   const {

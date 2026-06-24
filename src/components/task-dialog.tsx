@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bug, Share2, Sparkles } from "lucide-react";
+import { Bug, FileSearch, Share2, Sparkles } from "lucide-react";
 
 import { createTask, createTaskFromHome, updateTask } from "@/lib/actions";
 import {
@@ -155,33 +155,42 @@ export function TaskDialog({
             />
           </div>
 
-          {/* Tipo: Feature / Bug */}
+          {/* Tipo: Feature / Bug / Analisi */}
           <div className="space-y-2">
             <Label>Tipo</Label>
             <input type="hidden" name="type" value={type} />
             <div className="flex gap-2">
-              {TASK_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setType(t.value)}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
-                    type === t.value
-                      ? t.value === "bug"
-                        ? "border-red-500 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-400"
-                        : "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
-                      : "border-input bg-background text-muted-foreground hover:bg-muted/50"
-                  )}
-                >
-                  {t.value === "bug" ? (
-                    <Bug className="h-3.5 w-3.5" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
-                  )}
-                  {t.label}
-                </button>
-              ))}
+              {TASK_TYPES.map((t) => {
+                const active = type === t.value;
+                const activeCls =
+                  t.value === "bug"
+                    ? "border-red-500 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950/40 dark:text-red-400"
+                    : t.value === "analysis"
+                    ? "border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/40 dark:text-violet-400"
+                    : "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-400";
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setType(t.value)}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                      active
+                        ? activeCls
+                        : "border-input bg-background text-muted-foreground hover:bg-muted/50"
+                    )}
+                  >
+                    {t.value === "bug" ? (
+                      <Bug className="h-3.5 w-3.5" />
+                    ) : t.value === "analysis" ? (
+                      <FileSearch className="h-3.5 w-3.5" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {t.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { GitBranch, LogOut } from "lucide-react";
 
 import { NAV_ITEMS, isNavItemActive } from "@/lib/nav";
 import { signOut } from "@/lib/auth-actions";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { GithubSetupDialog } from "@/components/github-setup-dialog";
 
 export function AppSidebar({ userEmail }: { userEmail: string }) {
   const pathname = usePathname();
@@ -45,12 +45,19 @@ export function AppSidebar({ userEmail }: { userEmail: string }) {
           );
         })}
       </nav>
-      <div className="space-y-1 border-t p-3">
-        <ThemeToggle />
-        <p
-          className="truncate px-3 pt-1 text-xs text-muted-foreground"
-          title={userEmail}
-        >
+      <div className="border-t p-3">
+        <GithubSetupDialog
+          trigger={
+            <button
+              type="button"
+              className="mb-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <GitBranch className="h-4 w-4 shrink-0" />
+              Guida GitHub
+            </button>
+          }
+        />
+        <p className="truncate px-3 pb-2 text-xs text-muted-foreground" title={userEmail}>
           {userEmail}
         </p>
         <form action={signOut}>

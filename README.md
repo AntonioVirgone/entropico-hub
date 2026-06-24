@@ -7,7 +7,9 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
 
 ## Funzionalità
 
-- **Autenticazione** email+password (Supabase Auth). Accesso a invito (account creati dall'amministratore, niente self-signup). Ogni utente vede e gestisce solo i propri dati (RLS per-utente).
+- **Autenticazione** email+password **o GitHub (OAuth)** (Supabase Auth). Accesso a invito (account creati dall'amministratore, niente self-signup). Ogni utente vede e gestisce solo i propri dati (RLS per-utente).
+- **Creazione repository GitHub dal progetto**: chi accede con GitHub può, alla creazione di un progetto, generare anche il repository remoto sul proprio account (visibilità privata/pubblica a scelta, inizializzato con README e descrizione). Il link al repo è mostrato su card e header del progetto.
+- **Agente AI sui task (assistito)**: ogni task ha un tasto "Agente AI" che, in base al tipo (Feature → branch `feature/…`, Bug → `fix/…`, Analisi → `docs/…`), crea il branch sul repo del progetto e genera un **prompt pronto** da incollare in Claude Code (in locale, sotto il proprio abbonamento). Nessun costo a consumo: l'app non chiama modelli a pagamento.
 - Dashboard con elenco progetti (nome, descrizione, colore, stato attivo/archiviato, avanzamento task).
 - Creazione / modifica / archiviazione / eliminazione progetti.
 - **Metadati tecnici** per progetto: framework, linguaggio, tecnologie connesse (Supabase, Vercel, Render…) e strumenti (Docker, GitHub…). Catalogo predefinito con possibilità di aggiungere valori custom; visualizzati come badge su card e header del progetto.
@@ -33,6 +35,8 @@ Dashboard personale per gestire i progetti e le relative todolist (board Kanban)
    - `migration_project_documents.sql` (documentazione progetti)
    - `migration_documents_unique_slug.sql` (unicità slug per progetto → upsert atomico)
    - `migration_api_tokens.sql` (token API personali)
+   - `migration_github.sql` (login GitHub + creazione repository — vedi §5)
+   - `migration_task_type_analysis.sql` (tipo task "analisi" per l'agente AI)
 3. Recupera le chiavi:
    - **URL**: Project Settings → *Data API* → Project URL.
    - **publishable key**: Project Settings → *API Keys* → chiave `publishable` (formato `sb_publishable_…`). In alternativa va bene anche la legacy `anon` / `public`.
@@ -106,6 +110,124 @@ curl -s "https://<dominio>/api/projects/<PROJECT_ID>/documents/<slug>" -H "Autho
 
 > 🔒 I token sono salvati solo come **hash SHA-256**; il valore in chiaro è mostrato una sola volta. Revoca un token in qualsiasi momento dalla pagina Token API.
 
+## 5. Login e repository GitHub
+
+Permette di **accedere con GitHub** e, alla creazione di un progetto, di
+**generare il repository remoto** sull'account dell'utente.
+
+### Come funziona il flusso
+
+```
+Utente → "Accedi con GitHub" → GitHub (login/consenso)
+       → torna a SUPABASE (.../auth/v1/callback)   ← callback dell'OAuth App
+       → Supabase crea la sessione e rimanda alla TUA app (/auth/callback)
+       → la tua app salva il token GitHub e va in dashboard
+```
+
+Ci sono **due callback diversi**, da non confondere:
+
+- `https://<project-ref>.supabase.co/auth/v1/callback` → va messo **nella OAuth
+  App di GitHub**. È gestito da Supabase, non lo crei tu.
+- `https://<tuo-dominio>/auth/callback` → è la route della **tua** app (già
+  inclusa); va messo nei *Redirect URLs* di Supabase.
+
+### Passo 1 — Trova il tuo `<project-ref>`
+
+È il sottodominio del tuo URL Supabase (`NEXT_PUBLIC_SUPABASE_URL`):
+
+```
+https://abcd1234efgh5678.supabase.co
+        └──────┬───────┘
+          project-ref   → callback: https://abcd1234efgh5678.supabase.co/auth/v1/callback
+```
+
+Lo trovi già pronto anche in **Supabase → Authentication → Providers → GitHub**
+(campo *Callback URL (for OAuth)*): copialo da lì per essere certo.
+
+### Passo 2 — Crea la OAuth App su GitHub
+
+1. **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**
+   (`https://github.com/settings/developers`).
+2. Compila:
+
+   | Campo | Valore |
+   |---|---|
+   | **Application name** | Es. `Entropico Hub` (lo vede l'utente nel consenso) |
+   | **Homepage URL** | Il dominio dell'app, es. `https://<tuo-dominio>` (in locale `http://localhost:3000`) |
+   | **Authorization callback URL** | **Il callback di Supabase** del Passo 1: `https://<project-ref>.supabase.co/auth/v1/callback` |
+   | **Enable Device Flow** | Lascia deselezionato |
+
+3. **Register application** → copia il **Client ID** e premi **Generate a new
+   client secret** per ottenere il **Client Secret** (mostrato una sola volta).
+
+> ⚠️ Serve una **OAuth App**, *non* una **GitHub App** (sono voci diverse in
+> *Developer settings*): le GitHub Apps hanno token che scadono e un modello di
+> permessi differente.
+
+### Passo 3 — Incolla le chiavi in Supabase
+
+**Supabase → Authentication → Providers → GitHub**: attiva *Enable Sign in with
+GitHub*, incolla **Client ID** e **Client Secret**, salva.
+
+### Passo 4 — Redirect URLs della tua app
+
+In **Supabase → Authentication → URL Configuration**:
+
+- **Site URL**: `https://<tuo-dominio>`.
+- **Redirect URLs** (aggiungi entrambi):
+  - `https://<tuo-dominio>/auth/callback`
+  - `http://localhost:3000/auth/callback` (sviluppo locale)
+
+### Passo 5 — Migration
+
+Esegui [`migration_github.sql`](supabase/migration_github.sql) nel SQL Editor.
+
+### Dettagli e comportamento
+
+- Il pulsante **"Accedi con GitHub"** avvia l'OAuth con scope `repo` (necessario
+  per creare repo, anche privati; nel consenso GitHub appare come *"Full control
+  of private repositories"*). Lo scope è richiesto dal codice, non si configura
+  nella OAuth App. Al ritorno, la route `/auth/callback` scambia il codice per la
+  sessione e **cattura il token GitHub** — Supabase lo espone solo in quel
+  momento — salvandolo in `github_credentials` (per-utente, RLS).
+- Nel dialog **Nuovo progetto**, se sei collegato a GitHub, spunti *"Crea anche
+  il repository su GitHub"*, scegli nome e visibilità: l'app crea il repo via API
+  GitHub (`POST /user/repos`, `auto_init`) e ne salva l'URL sul progetto.
+- **Una sola OAuth App** copre locale e produzione (il callback punta sempre allo
+  stesso progetto Supabase); a variare sono solo i *Redirect URLs* del Passo 4.
+  Se usi **due progetti Supabase** (dev e prod separati), servono **due** OAuth App,
+  una per `project-ref`.
+
+### Troubleshooting
+
+- `redirect_uri mismatch` da GitHub → l'*Authorization callback URL* della OAuth
+  App non combacia con quello di Supabase: ricopialo dal pannello del provider.
+- Atterri su `/login?error=oauth` dopo aver autorizzato → manca
+  `https://<tuo-dominio>/auth/callback` nei *Redirect URLs* di Supabase (Passo 4).
+
+> 🔒 Il token GitHub è letto **solo lato server** e non è mai inviato al browser.
+> È memorizzato in chiaro nella tabella `github_credentials` (isolata via RLS):
+> per un irrobustimento futuro si può cifrarlo con Supabase Vault. Revoca
+> l'accesso da **GitHub → Settings → Applications** quando vuoi.
+
+## 6. Agente AI sui task (assistito)
+
+Modalità **Fase 1**: l'app non chiama nessun modello a pagamento. Dal tasto
+**"Agente AI"** su un task:
+
+1. In base al tipo di task viene creato (se il progetto ha un repo collegato e
+   sei connesso a GitHub) il branch dedicato: `feature/<slug>` (Feature),
+   `fix/<slug>` (Bug), `docs/<slug>` (Analisi). La creazione è idempotente.
+2. Viene generato un **prompt pronto** con contesto progetto, stack, task e
+   istruzioni operative, da **copiare e incollare in Claude Code** (eseguito in
+   locale, sotto il tuo abbonamento Claude). L'agente lavora sul branch, poi
+   pushi e apri una PR.
+
+Così l'integrazione resta **gratuita** (l'unico "costo" è il tuo abbonamento
+Claude per Claude Code). L'automazione completa "un clic → branch + PR" via
+**Anthropic Managed Agents** è una possibile evoluzione (Fase 2), ma è API a
+consumo e quindi a pagamento.
+
 ---
 
 ## Struttura
@@ -115,7 +237,8 @@ src/
   proxy.ts                    # protezione route + refresh sessione (ex-middleware)
   app/
     page.tsx                  # dashboard progetti
-    login/page.tsx            # accesso (email+password)
+    login/page.tsx            # accesso (email+password o GitHub)
+    auth/callback/route.ts    # callback OAuth (cattura il token GitHub)
     idee/page.tsx             # Backlog idee (nuovi progetti)
     token/page.tsx            # Token API personali
     projects/[id]/page.tsx    # board Kanban del progetto
@@ -125,6 +248,8 @@ src/
     ui/                       # primitive shadcn/ui
     app-sidebar.tsx, mobile-nav.tsx   # navigazione + logout
     project-card.tsx, project-dialog.tsx
+    github-auth-button.tsx    # login/collegamento GitHub (OAuth)
+    agent-task-dialog.tsx     # "Agente AI": branch + prompt per Claude Code
     task-card.tsx, task-dialog.tsx, kanban-board.tsx
     idea-card.tsx, idea-dialog.tsx
   lib/
@@ -135,6 +260,9 @@ src/
     token-actions.ts          # crea/revoca token API
     api-token.ts              # generazione/hash token (server)
     api-auth.ts               # auth Route API via token personale
+    github.ts                 # client API GitHub (repo + branch)
+    agent-actions.ts          # prepara branch + prompt (modalità assistita)
+    agent-prompt.ts           # costruzione del prompt per Claude Code
     types.ts                  # tipi e costanti
     nav.ts                    # voci del menu principale
 supabase/

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createUserRepo, GithubError } from "@/lib/github";
 import { slugify } from "@/lib/utils";
 import type {
   DocumentFormat,
@@ -30,9 +31,17 @@ function parseList(formData: FormData, name: string): string[] {
   ];
 }
 
-export async function createProject(formData: FormData) {
+/**
+ * Crea un progetto e, se richiesto, il relativo repository su GitHub per conto
+ * dell'utente loggato. Il progetto è il record primario: se la creazione del
+ * repo fallisce, il progetto resta e l'errore viene restituito (non lanciato),
+ * così la UI può segnalarlo senza perdere il progetto.
+ */
+export async function createProject(
+  formData: FormData
+): Promise<{ githubError: string | null }> {
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
+  if (!name) return { githubError: null };
 
   const description = String(formData.get("description") ?? "").trim() || null;
   const color = String(formData.get("color") ?? "#3b82f6");
@@ -42,12 +51,82 @@ export async function createProject(formData: FormData) {
   const tools = parseList(formData, "tools");
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  const { data: project, error } = await supabase
     .from("projects")
-    .insert({ name, description, color, framework, language, technologies, tools });
+    .insert({ name, description, color, framework, language, technologies, tools })
+    .select("id")
+    .single();
 
   if (error) throw new Error(error.message);
   revalidatePath("/");
+
+  if (formData.get("create_github_repo") !== "true") {
+    return { githubError: null };
+  }
+
+  const githubError = await createGithubRepoForProject(supabase, project.id, {
+    name,
+    description,
+    repoName: String(formData.get("github_repo_name") ?? "").trim(),
+    isPrivate: formData.get("github_visibility") !== "public",
+  });
+  return { githubError };
+}
+
+/**
+ * Crea il repository GitHub e lo collega al progetto. Ritorna un messaggio
+ * d'errore (stringa) se qualcosa va storto, altrimenti null.
+ */
+async function createGithubRepoForProject(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  projectId: string,
+  opts: {
+    name: string;
+    description: string | null;
+    repoName: string;
+    isPrivate: boolean;
+  }
+): Promise<string | null> {
+  // Token GitHub dell'utente (letto solo lato server via RLS).
+  const { data: cred } = await supabase
+    .from("github_credentials")
+    .select("access_token")
+    .maybeSingle();
+
+  if (!cred?.access_token) {
+    return "GitHub non collegato: accedi/collegati con GitHub per creare il repository.";
+  }
+
+  const repoName = slugify(opts.repoName || opts.name);
+  if (!repoName) return "Nome repository non valido.";
+
+  try {
+    const repo = await createUserRepo(cred.access_token, {
+      name: repoName,
+      description: opts.description,
+      isPrivate: opts.isPrivate,
+      autoInit: true,
+    });
+
+    const { error: updErr } = await supabase
+      .from("projects")
+      .update({
+        github_repo_url: repo.html_url,
+        github_repo_full_name: repo.full_name,
+      })
+      .eq("id", projectId);
+
+    if (updErr) {
+      return `Repository creato (${repo.html_url}) ma collegamento non salvato: ${updErr.message}`;
+    }
+
+    revalidatePath("/");
+    revalidatePath(`/projects/${projectId}`);
+    return null;
+  } catch (e) {
+    if (e instanceof GithubError) return `GitHub: ${e.message}`;
+    return "Errore imprevisto nella creazione del repository GitHub.";
+  }
 }
 
 export async function updateProject(id: string, formData: FormData) {

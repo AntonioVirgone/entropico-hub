@@ -1,6 +1,11 @@
 import { FolderPlus, Plus } from "lucide-react";
 
-import { getHighPriorityActiveTasks, getProjects, getTaskCounts } from "@/lib/queries";
+import {
+  getGithubConnection,
+  getHighPriorityActiveTasks,
+  getProjects,
+  getTaskCounts,
+} from "@/lib/queries";
 import { Button } from "@/components/ui/button";
 import { HighPriorityTasks } from "@/components/high-priority-tasks";
 import { ProjectCard } from "@/components/project-card";
@@ -11,9 +16,10 @@ import { TaskDialog } from "@/components/task-dialog";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [projects, highPriorityTasks] = await Promise.all([
+  const [projects, highPriorityTasks, github] = await Promise.all([
     getProjects(),
     getHighPriorityActiveTasks(),
+    getGithubConnection(),
   ]);
 
   const counts = await Promise.all(projects.map((p) => getTaskCounts(p.id)));
@@ -60,6 +66,7 @@ export default async function DashboardPage() {
             }
           />
           <ProjectDialog
+            github={github}
             trigger={
               <Button>
                 <Plus /> Nuovo progetto

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, GitBranch, Plus } from "lucide-react";
 
 import {
   getProject,
@@ -70,6 +70,17 @@ export default async function ProjectBoardPage({
               <div className="mt-2">
                 <TechBadges project={project} />
               </div>
+              {project.github_repo_url && (
+                <a
+                  href={project.github_repo_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <GitBranch className="h-4 w-4" />
+                  {project.github_repo_full_name ?? "Repository GitHub"}
+                </a>
+              )}
             </div>
           </div>
           <TaskDialog
