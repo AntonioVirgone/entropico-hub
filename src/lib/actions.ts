@@ -51,6 +51,24 @@ export async function createProject(
   const tools = parseList(formData, "tools");
 
   const supabase = await createSupabaseServerClient();
+
+  // Difesa anti-duplicazione: se in locale arrivano più submit ravvicinati
+  // (doppio click prima che la UI si disabiliti), un progetto con lo stesso
+  // nome appena creato viene considerato lo stesso. Evitiamo sia il record
+  // duplicato sia un secondo tentativo di creazione del repo GitHub.
+  const since = new Date(Date.now() - 10_000).toISOString();
+  const { data: recent } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("name", name)
+    .gte("created_at", since)
+    .limit(1)
+    .maybeSingle();
+
+  if (recent) {
+    return { githubError: null };
+  }
+
   const { data: project, error } = await supabase
     .from("projects")
     .insert({ name, description, color, framework, language, technologies, tools })
