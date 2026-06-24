@@ -35,6 +35,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { TechMultiSelect } from "@/components/tech-multi-select";
 import { GithubAuthButton } from "@/components/github-auth-button";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function ProjectDialog({
   trigger,
@@ -60,6 +61,7 @@ export function ProjectDialog({
   const [createRepo, setCreateRepo] = useState(false);
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
+  const { confirm, dialog: alertDialog } = useConfirm();
 
   const githubConnected = github?.connected ?? false;
   const canCreateRepo = !isEdit && githubConnected;
@@ -74,8 +76,12 @@ export function ProjectDialog({
       } else {
         const result = await createProject(formData);
         if (result?.githubError) {
-          // Il progetto è stato creato; segnalo solo il problema sul repo.
-          alert(`Progetto creato, ma il repository GitHub no.\n\n${result.githubError}`);
+          await confirm({
+            title: "Progetto creato",
+            description: `Il progetto è stato creato, ma il repository GitHub no.\n\n${result.githubError}`,
+            confirmLabel: "Ok",
+            showCancel: false,
+          });
         }
       }
       setOpen(false);
@@ -87,6 +93,7 @@ export function ProjectDialog({
   }
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(o) => {
@@ -292,5 +299,7 @@ export function ProjectDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {alertDialog}
+  </>
   );
 }
