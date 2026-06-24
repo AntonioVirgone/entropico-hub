@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { createProject, updateProject } from "@/lib/actions";
@@ -59,11 +59,14 @@ export function ProjectDialog({
   const [name, setName] = useState<string>(project?.name ?? "");
   const [createRepo, setCreateRepo] = useState(false);
   const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
 
   const githubConnected = github?.connected ?? false;
   const canCreateRepo = !isEdit && githubConnected;
 
   async function handleAction(formData: FormData) {
+    if (submitting.current) return;
+    submitting.current = true;
     setPending(true);
     try {
       if (isEdit) {
@@ -78,6 +81,7 @@ export function ProjectDialog({
       setOpen(false);
       router.refresh();
     } finally {
+      submitting.current = false;
       setPending(false);
     }
   }
