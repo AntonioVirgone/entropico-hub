@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { createProject, updateProject } from "@/lib/actions";
@@ -35,6 +35,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { TechMultiSelect } from "@/components/tech-multi-select";
 import { GithubAuthButton } from "@/components/github-auth-button";
+import { useConfirm } from "@/components/confirm-dialog";
 
 export function ProjectDialog({
   trigger,
@@ -59,11 +60,15 @@ export function ProjectDialog({
   const [name, setName] = useState<string>(project?.name ?? "");
   const [createRepo, setCreateRepo] = useState(false);
   const [pending, setPending] = useState(false);
+  const submitting = useRef(false);
+  const { confirm, dialog: alertDialog } = useConfirm();
 
   const githubConnected = github?.connected ?? false;
   const canCreateRepo = !isEdit && githubConnected;
 
   async function handleAction(formData: FormData) {
+    if (submitting.current) return;
+    submitting.current = true;
     setPending(true);
     try {
       if (isEdit) {
@@ -71,18 +76,24 @@ export function ProjectDialog({
       } else {
         const result = await createProject(formData);
         if (result?.githubError) {
-          // Il progetto è stato creato; segnalo solo il problema sul repo.
-          alert(`Progetto creato, ma il repository GitHub no.\n\n${result.githubError}`);
+          await confirm({
+            title: "Progetto creato",
+            description: `Il progetto è stato creato, ma il repository GitHub no.\n\n${result.githubError}`,
+            confirmLabel: "Ok",
+            showCancel: false,
+          });
         }
       }
       setOpen(false);
       router.refresh();
     } finally {
+      submitting.current = false;
       setPending(false);
     }
   }
 
   return (
+    <>
     <Dialog
       open={open}
       onOpenChange={(o) => {
@@ -288,5 +299,7 @@ export function ProjectDialog({
         </form>
       </DialogContent>
     </Dialog>
+    {alertDialog}
+  </>
   );
 }

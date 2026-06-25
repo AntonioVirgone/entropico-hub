@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { IdeaDialog } from "@/components/idea-dialog";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const STATUS_STYLES: Record<IdeaStatus, string> = {
   idea: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
@@ -53,6 +54,7 @@ const STATUS_LABELS: Record<IdeaStatus, string> = Object.fromEntries(
 export function IdeaCard({ idea }: { idea: ProjectIdea }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const isPromoted = idea.status === "promossa";
 
   async function handleStatusChange(status: IdeaStatus) {
@@ -67,12 +69,12 @@ export function IdeaCard({ idea }: { idea: ProjectIdea }) {
   }
 
   async function handlePromote() {
-    if (
-      !confirm(
-        `Promuovere l'idea "${idea.title}" a progetto? Verrà creato un nuovo progetto precompilato (nessun collegamento automatico).`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Promuovi a progetto",
+      description: `Promuovere l'idea "${idea.title}" a progetto? Verrà creato un nuovo progetto precompilato (nessun collegamento automatico).`,
+      confirmLabel: "Promuovi",
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await promoteIdeaToProject(idea.id);
@@ -83,12 +85,13 @@ export function IdeaCard({ idea }: { idea: ProjectIdea }) {
   }
 
   async function handleDelete() {
-    if (
-      !confirm(
-        `Eliminare l'idea "${idea.title}"? L'azione è irreversibile.`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Elimina idea",
+      description: `Eliminare l'idea "${idea.title}"? L'azione è irreversibile.`,
+      confirmLabel: "Elimina",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await deleteProjectIdea(idea.id);
@@ -99,6 +102,8 @@ export function IdeaCard({ idea }: { idea: ProjectIdea }) {
   }
 
   return (
+    <>
+    {dialog}
     <Card className="flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
@@ -165,5 +170,6 @@ export function IdeaCard({ idea }: { idea: ProjectIdea }) {
         </div>
       </CardFooter>
     </Card>
+    </>
   );
 }
