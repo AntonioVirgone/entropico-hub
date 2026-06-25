@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/kanban-board";
 import { TaskDialog } from "@/components/task-dialog";
 import { TechBadges } from "@/components/tech-badges";
-import { DocumentsSection } from "@/components/documents-section";
+import { DocumentsModal } from "@/components/documents-modal";
 import { resolveProjectColor } from "@/lib/tech-colors";
 
 export const dynamic = "force-dynamic";
@@ -83,21 +83,22 @@ export default async function ProjectBoardPage({
               )}
             </div>
           </div>
-          <TaskDialog
-            projectId={project.id}
-            allProjects={allProjects}
-            trigger={
-              <Button>
-                <Plus /> Aggiungi task
-              </Button>
-            }
-          />
+          <div className="flex items-center gap-2">
+            <DocumentsModal projectId={project.id} documents={documents} />
+            <TaskDialog
+              projectId={project.id}
+              allProjects={allProjects}
+              trigger={
+                <Button>
+                  <Plus /> Aggiungi task
+                </Button>
+              }
+            />
+          </div>
         </div>
       </div>
 
       <KanbanBoard projectId={project.id} tasks={tasks} allProjects={allProjects} />
-
-      <DocumentsSection projectId={project.id} documents={documents} />
     </div>
   );
 }
