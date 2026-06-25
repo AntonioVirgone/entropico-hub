@@ -20,6 +20,30 @@ export interface CreatedRepo {
   full_name: string;
 }
 
+/**
+ * Estrae "owner/repo" da un URL GitHub completo o da una stringa breve.
+ * Accetta: https://github.com/owner/repo[.git][/] oppure owner/repo.
+ * Ritorna null se il formato non è riconosciuto.
+ */
+export function parseGithubRepoInput(input: string): string | null {
+  const trimmed = input.trim().replace(/\.git$/, "").replace(/\/$/, "");
+  const urlMatch = trimmed.match(/^https?:\/\/github\.com\/([^/]+\/[^/#?]+)$/);
+  if (urlMatch) return urlMatch[1];
+  if (/^[\w.-]+\/[\w.-]+$/.test(trimmed)) return trimmed;
+  return null;
+}
+
+/** Recupera i metadati di un repository e verifica che sia accessibile col token. */
+export async function getRepo(token: string, fullName: string): Promise<CreatedRepo> {
+  const res = await fetch(`${GITHUB_API}/repos/${fullName}`, {
+    headers: githubHeaders(token),
+    cache: "no-store",
+  });
+  if (!res.ok) await failGithub(res);
+  const data = (await res.json()) as { html_url: string; full_name: string };
+  return { html_url: data.html_url, full_name: data.full_name };
+}
+
 export class GithubError extends Error {
   status: number;
   constructor(message: string, status: number) {

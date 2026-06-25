@@ -58,13 +58,13 @@ export function ProjectDialog({
   );
   const [tools, setTools] = useState<string[]>(project?.tools ?? []);
   const [name, setName] = useState<string>(project?.name ?? "");
-  const [createRepo, setCreateRepo] = useState(false);
+  const [githubMode, setGithubMode] = useState<"none" | "create" | "link">("none");
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
   const { confirm, dialog: alertDialog } = useConfirm();
 
   const githubConnected = github?.connected ?? false;
-  const canCreateRepo = !isEdit && githubConnected;
+  const canLinkRepo = !isEdit && githubConnected;
 
   async function handleAction(formData: FormData) {
     if (submitting.current) return;
@@ -103,7 +103,7 @@ export function ProjectDialog({
           setTechnologies(project?.technologies ?? []);
           setTools(project?.tools ?? []);
           setName(project?.name ?? "");
-          setCreateRepo(false);
+          setGithubMode("none");
         }
       }}
     >
@@ -223,59 +223,103 @@ export function ProjectDialog({
           {/* ── Repository GitHub (solo in creazione) ── */}
           {!isEdit && (
             <div className="space-y-3 rounded-lg border p-3">
-              {canCreateRepo ? (
+              {canLinkRepo ? (
                 <>
                   <label className="flex items-start gap-2">
                     <input
                       type="checkbox"
-                      name="create_github_repo"
-                      value="true"
-                      checked={createRepo}
-                      onChange={(e) => setCreateRepo(e.target.checked)}
+                      checked={githubMode !== "none"}
+                      onChange={(e) =>
+                        setGithubMode(e.target.checked ? "link" : "none")
+                      }
                       className="mt-0.5 h-4 w-4"
                     />
                     <span className="text-sm">
-                      <span className="font-medium">Crea anche il repository su GitHub</span>
+                      <span className="font-medium">Collega repository GitHub</span>
                       <span className="block text-xs text-muted-foreground">
-                        Sull&apos;account{" "}
-                        <span className="font-medium">@{github?.login}</span>, con README e
-                        descrizione del progetto.
+                        Account <span className="font-medium">@{github?.login}</span>
                       </span>
                     </span>
                   </label>
 
-                  {createRepo && (
+                  <input
+                    type="hidden"
+                    name="github_action"
+                    value={githubMode !== "none" ? githubMode : ""}
+                  />
+
+                  {githubMode !== "none" && (
                     <div className="space-y-3 pl-6">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="github_repo_name" className="text-xs">
-                          Nome repository
-                        </Label>
-                        <Input
-                          id="github_repo_name"
-                          name="github_repo_name"
-                          defaultValue=""
-                          placeholder={slugify(name) || "nome-repository"}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Lascia vuoto per usare{" "}
-                          <code className="rounded bg-muted px-1">
-                            {slugify(name) || "nome-progetto"}
-                          </code>
-                          .
-                        </p>
+                      {/* Selezione modalità */}
+                      <div className="flex gap-4">
+                        <label className="flex cursor-pointer items-center gap-1.5 text-sm">
+                          <input
+                            type="radio"
+                            checked={githubMode === "link"}
+                            onChange={() => setGithubMode("link")}
+                            className="h-3.5 w-3.5"
+                          />
+                          Associa esistente
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-1.5 text-sm">
+                          <input
+                            type="radio"
+                            checked={githubMode === "create"}
+                            onChange={() => setGithubMode("create")}
+                            className="h-3.5 w-3.5"
+                          />
+                          Crea nuovo
+                        </label>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Visibilità</Label>
-                        <Select name="github_visibility" defaultValue="private">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="private">Privato</SelectItem>
-                            <SelectItem value="public">Pubblico</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+
+                      {githubMode === "link" && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor="github_repo_url_input" className="text-xs">
+                            URL del repository GitHub
+                          </Label>
+                          <Input
+                            id="github_repo_url_input"
+                            name="github_repo_url_input"
+                            placeholder="https://github.com/owner/nome-repo"
+                            type="url"
+                          />
+                        </div>
+                      )}
+
+                      {githubMode === "create" && (
+                        <>
+                          <div className="space-y-1.5">
+                            <Label htmlFor="github_repo_name" className="text-xs">
+                              Nome repository
+                            </Label>
+                            <Input
+                              id="github_repo_name"
+                              name="github_repo_name"
+                              defaultValue=""
+                              placeholder={slugify(name) || "nome-repository"}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Lascia vuoto per usare{" "}
+                              <code className="rounded bg-muted px-1">
+                                {slugify(name) || "nome-progetto"}
+                              </code>
+                              .
+                            </p>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Visibilità</Label>
+                            <Select name="github_visibility" defaultValue="private">
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="private">Privato</SelectItem>
+                                <SelectItem value="public">Pubblico</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </>
@@ -283,7 +327,7 @@ export function ProjectDialog({
                 <div className="flex flex-col items-start gap-2">
                   <p className="text-sm font-medium">Repository su GitHub</p>
                   <p className="text-xs text-muted-foreground">
-                    Collega GitHub per poter creare il repository del progetto al volo.
+                    Collega GitHub per poter creare o associare un repository al progetto.
                   </p>
                   <GithubAuthButton label="Collega GitHub" next="/" />
                 </div>
