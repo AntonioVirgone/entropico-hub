@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, GitBranch, Plus } from "lucide-react";
 
 import {
+  getGithubConnection,
   getProject,
   getProjectDocuments,
   getProjects,
@@ -14,6 +15,7 @@ import { KanbanBoard } from "@/components/kanban-board";
 import { TaskDialog } from "@/components/task-dialog";
 import { TechBadges } from "@/components/tech-badges";
 import { DocumentsModal } from "@/components/documents-modal";
+import { GitHubRepoButton } from "@/components/github-repo-button";
 import { resolveProjectColor } from "@/lib/tech-colors";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +26,12 @@ export default async function ProjectBoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [project, tasks, allProjects, documents] = await Promise.all([
+  const [project, tasks, allProjects, documents, github] = await Promise.all([
     getProject(id),
     getTasks(id),
     getProjects(),
     getProjectDocuments(id),
+    getGithubConnection(),
   ]);
 
   if (!project) notFound();
@@ -84,6 +87,13 @@ export default async function ProjectBoardPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!project.github_repo_url && (
+              <GitHubRepoButton
+                projectId={project.id}
+                project={{ name: project.name, description: project.description }}
+                github={github}
+              />
+            )}
             <DocumentsModal projectId={project.id} documents={documents} />
             <TaskDialog
               projectId={project.id}

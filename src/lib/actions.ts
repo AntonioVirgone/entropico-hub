@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createUserRepo, GithubError } from "@/lib/github";
+import { createUserRepo, getRepo, parseGithubRepoInput, GithubError } from "@/lib/github";
 import { slugify } from "@/lib/utils";
 import type {
   DocumentFormat,
@@ -60,17 +60,25 @@ export async function createProject(
   if (error) throw new Error(error.message);
   revalidatePath("/");
 
-  if (formData.get("create_github_repo") !== "true") {
-    return { githubError: null };
+  const githubAction = String(formData.get("github_action") ?? "");
+
+  if (githubAction === "create") {
+    const githubError = await createGithubRepoForProject(supabase, project.id, {
+      name,
+      description,
+      repoName: String(formData.get("github_repo_name") ?? "").trim(),
+      isPrivate: formData.get("github_visibility") !== "public",
+    });
+    return { githubError };
   }
 
-  const githubError = await createGithubRepoForProject(supabase, project.id, {
-    name,
-    description,
-    repoName: String(formData.get("github_repo_name") ?? "").trim(),
-    isPrivate: formData.get("github_visibility") !== "public",
-  });
-  return { githubError };
+  if (githubAction === "link") {
+    const repoInput = String(formData.get("github_repo_url_input") ?? "").trim();
+    const githubError = await saveRepoLink(supabase, project.id, repoInput);
+    return { githubError };
+  }
+
+  return { githubError: null };
 }
 
 /**
@@ -127,6 +135,73 @@ async function createGithubRepoForProject(
     if (e instanceof GithubError) return `GitHub: ${e.message}`;
     return "Errore imprevisto nella creazione del repository GitHub.";
   }
+}
+
+/**
+ * Valida un URL/nome repository GitHub e salva il collegamento al progetto.
+ * Ritorna un messaggio d'errore (stringa) o null.
+ */
+async function saveRepoLink(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  projectId: string,
+  repoInput: string
+): Promise<string | null> {
+  const fullName = parseGithubRepoInput(repoInput);
+  if (!fullName)
+    return "URL non valido. Usa il formato https://github.com/owner/repo.";
+
+  const { data: cred } = await supabase
+    .from("github_credentials")
+    .select("access_token")
+    .maybeSingle();
+  if (!cred?.access_token) return "GitHub non collegato.";
+
+  try {
+    const repo = await getRepo(cred.access_token, fullName);
+    const { error: updErr } = await supabase
+      .from("projects")
+      .update({ github_repo_url: repo.html_url, github_repo_full_name: repo.full_name })
+      .eq("id", projectId);
+    if (updErr) return updErr.message;
+    revalidatePath("/");
+    revalidatePath(`/projects/${projectId}`);
+    return null;
+  } catch (e) {
+    if (e instanceof GithubError) return `GitHub: ${e.message}`;
+    return "Errore imprevisto durante il collegamento.";
+  }
+}
+
+/** Collega un repository GitHub esistente a un progetto già creato. */
+export async function linkExistingRepo(
+  projectId: string,
+  repoInput: string
+): Promise<{ error: string | null }> {
+  const supabase = await createSupabaseServerClient();
+  const error = await saveRepoLink(supabase, projectId, repoInput);
+  return { error };
+}
+
+/** Crea un repository GitHub per un progetto già esistente. */
+export async function createGithubRepo(
+  projectId: string,
+  opts: { name: string; description: string | null; repoName: string; isPrivate: boolean }
+): Promise<{ error: string | null }> {
+  const supabase = await createSupabaseServerClient();
+  const error = await createGithubRepoForProject(supabase, projectId, opts);
+  return { error };
+}
+
+/** Rimuove il collegamento GitHub da un progetto. */
+export async function unlinkRepo(projectId: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ github_repo_url: null, github_repo_full_name: null })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/");
+  revalidatePath(`/projects/${projectId}`);
 }
 
 export async function updateProject(id: string, formData: FormData) {
