@@ -10,6 +10,7 @@ import type { Project } from "@/lib/types";
 import { resolveProjectColor } from "@/lib/tech-colors";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -32,6 +33,7 @@ export function ProjectCard({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const isArchived = project.status === "archived";
   const dotColor = resolveProjectColor({
     language: project.language,
@@ -50,12 +52,13 @@ export function ProjectCard({
   }
 
   async function handleDelete() {
-    if (
-      !confirm(
-        `Eliminare il progetto "${project.name}" e tutti i suoi task? L'azione è irreversibile.`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Elimina progetto",
+      description: `Eliminare il progetto "${project.name}" e tutti i suoi task? L'azione è irreversibile.`,
+      confirmLabel: "Elimina",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await deleteProject(project.id);
@@ -68,6 +71,8 @@ export function ProjectCard({
   const progress = total === 0 ? 0 : Math.round((done / total) * 100);
 
   return (
+    <>
+    {dialog}
     <Card className="flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
@@ -154,5 +159,6 @@ export function ProjectCard({
         </div>
       </CardFooter>
     </Card>
+    </>
   );
 }

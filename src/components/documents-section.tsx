@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { DocumentDialog } from "@/components/document-dialog";
 import { DocumentView } from "@/components/document-view";
 import { ApiUploadHint } from "@/components/api-upload-hint";
+import { useConfirm } from "@/components/confirm-dialog";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("it-IT", {
@@ -30,6 +31,7 @@ function DocumentRow({
   const router = useRouter();
   const [completed, setCompleted] = useState(document.is_completed);
   const [pending, setPending] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const [toggling, setToggling] = useState(false);
 
   async function handleToggleCompleted() {
@@ -47,7 +49,13 @@ function DocumentRow({
   }
 
   async function handleDelete() {
-    if (!confirm(`Eliminare il documento "${document.title}"?`)) return;
+    const ok = await confirm({
+      title: "Elimina documento",
+      description: `Eliminare il documento "${document.title}"?`,
+      confirmLabel: "Elimina",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await deleteDocument(document.id, projectId);
@@ -58,6 +66,8 @@ function DocumentRow({
   }
 
   return (
+    <>
+    {dialog}
     <div className={`flex items-center gap-3 rounded-lg border bg-background px-4 py-3 ${completed ? "opacity-60" : ""}`}>
       <button
         type="button"
@@ -118,6 +128,7 @@ function DocumentRow({
         </Button>
       </div>
     </div>
+    </>
   );
 }
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, KeyRound, Plus, Trash2, TriangleAlert } from "lucide-react";
 
 import { createApiToken, deleteApiToken } from "@/lib/token-actions";
+import { useConfirm } from "@/components/confirm-dialog";
 import type { ApiToken } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -153,14 +154,16 @@ function CreateTokenDialog() {
 function TokenRow({ token }: { token: ApiToken }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   async function handleDelete() {
-    if (
-      !confirm(
-        `Revocare il token "${token.name}"? Le chiamate che lo usano smetteranno di funzionare.`
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Revoca token",
+      description: `Revocare il token "${token.name}"? Le chiamate che lo usano smetteranno di funzionare.`,
+      confirmLabel: "Revoca",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await deleteApiToken(token.id);
@@ -171,6 +174,8 @@ function TokenRow({ token }: { token: ApiToken }) {
   }
 
   return (
+    <>
+    {dialog}
     <div className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3">
       <KeyRound className="h-4 w-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
@@ -194,6 +199,7 @@ function TokenRow({ token }: { token: ApiToken }) {
         <Trash2 />
       </Button>
     </div>
+    </>
   );
 }
 

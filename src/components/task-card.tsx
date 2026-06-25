@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TaskDialog } from "@/components/task-dialog";
 import { AgentTaskDialog } from "@/components/agent-task-dialog";
+import { useConfirm } from "@/components/confirm-dialog";
 
 const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "done"];
 
@@ -54,6 +55,7 @@ export function TaskCard({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const { confirm, dialog } = useConfirm();
   // Per task cross-funzionali task.project_id è il progetto primario,
   // che può differire dalla board corrente. Usiamo sempre il projectId
   // della board, cadendo su task.project_id solo nell'overlay DnD.
@@ -85,7 +87,13 @@ export function TaskCard({
   }
 
   async function handleDelete() {
-    if (!confirm(`Eliminare il task "${task.title}"?`)) return;
+    const ok = await confirm({
+      title: "Elimina task",
+      description: `Eliminare il task "${task.title}"?`,
+      confirmLabel: "Elimina",
+      variant: "destructive",
+    });
+    if (!ok) return;
     setPending(true);
     try {
       await deleteTask(task.id, currentProjectId);
@@ -96,6 +104,7 @@ export function TaskCard({
   }
 
   return (
+    <>
     <Card
       ref={setNodeRef}
       style={style}
@@ -271,6 +280,8 @@ export function TaskCard({
         </div>
       )}
     </Card>
+    {dialog}
+  </>
   );
 }
 
