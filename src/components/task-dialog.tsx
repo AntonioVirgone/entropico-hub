@@ -69,6 +69,7 @@ export function TaskDialog({
   const [selectedHomeIds, setSelectedHomeIds] = useState<string[]>([]);
   const [homeError, setHomeError] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const otherProjects = allProjects.filter(
     (p) => p.id !== projectId && p.status === "active"
@@ -82,6 +83,7 @@ export function TaskDialog({
     setSelectedCrossIds(task?.cross_project_ids ?? []);
     setSelectedHomeIds([]);
     setHomeError(false);
+    setError(null);
   }
 
   function toggleCrossId(pid: string) {
@@ -102,17 +104,29 @@ export function TaskDialog({
       setHomeError(true);
       return;
     }
+    setError(null);
     setPending(true);
     try {
-      if (isEdit) {
-        await updateTask(task.id, projectId!, formData);
-      } else if (isHomeMode) {
-        await createTaskFromHome(formData);
-      } else {
-        await createTask(projectId!, formData);
+      const result = isEdit
+        ? await updateTask(task.id, projectId!, formData)
+        : isHomeMode
+        ? await createTaskFromHome(formData)
+        : await createTask(projectId!, formData);
+
+      if (result && !result.ok) {
+        // Errore gestito dal server (es. tipo non abilitato nel DB): mostralo
+        // senza chiudere il dialog né far crashare l'app.
+        setError(result.error);
+        return;
       }
+
       setOpen(false);
       router.refresh();
+    } catch (e) {
+      // Rete o errore imprevisto: nessun crash, messaggio in chiaro.
+      setError(
+        e instanceof Error ? e.message : "Errore imprevisto durante il salvataggio."
+      );
     } finally {
       setPending(false);
     }
@@ -419,6 +433,15 @@ export function TaskDialog({
                 </div>
               )}
             </div>
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {error}
+            </p>
           )}
 
           <DialogFooter>
