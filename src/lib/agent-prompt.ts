@@ -111,8 +111,9 @@ export function buildAgentPrompt(input: AgentPromptInput): string {
     "3. Fai commit piccoli e con messaggi chiari.",
     "4. Esegui lint/test del progetto se disponibili.",
     branch
-      ? "5. Al termine, pusha il branch e apri una Pull Request verso il branch di default, riassumendo cosa hai fatto."
-      : "5. Al termine, riassumi cosa hai fatto e come verificarlo."
+      ? "5. Al termine, pusha il branch e apri una Pull Request verso il branch di default, riassumendo cosa hai fatto e come verificarlo."
+      : "5. Al termine, riassumi cosa hai fatto e come verificarlo.",
+    "6. Crea una documentazione tecnica relativa alle modifiche fatte e salvala nella cartella docs del progetto con il nome della feature appena svolta. Se la cartella docs non esiste creala. La documentazione deve essere sempre in formato .md"
   );
 
   return lines.join("\n");
