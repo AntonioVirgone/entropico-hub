@@ -268,6 +268,21 @@ export async function deleteProject(id: string) {
 // Tasks
 // ----------------------------------------------------------------
 
+/** Esito di una mutazione di task: evita di lasciar propagare l'errore al client (crash). */
+export type TaskActionResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Traduce gli errori del DB in messaggi azionabili per l'operatore.
+ * In particolare la violazione del CHECK sul tipo task indica che la migration
+ * che abilita il tipo "analysis" non è ancora stata applicata al database.
+ */
+function friendlyTaskError(message: string): string {
+  if (message.includes("tasks_type_check")) {
+    return "Questo tipo di task non è abilitato nel database. Applica la migration supabase/migration_task_type_analysis.sql nel SQL Editor di Supabase.";
+  }
+  return message;
+}
+
 function parseCrossProjectIds(formData: FormData, primaryProjectId: string): string[] {
   const isCross = formData.get("is_cross_functional") === "true";
   if (!isCross) return [];
@@ -320,9 +335,12 @@ async function syncCrossProjects(
   return { added: toAdd, removed: toRemove };
 }
 
-export async function createTask(projectId: string, formData: FormData) {
+export async function createTask(
+  projectId: string,
+  formData: FormData
+): Promise<TaskActionResult> {
   const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
+  if (!title) return { ok: true };
 
   const description = String(formData.get("description") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -340,34 +358,35 @@ export async function createTask(projectId: string, formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, error: friendlyTaskError(error.message) };
 
   // 2. Inserisci la riga principale nella junction (progetto corrente, status 'todo')
   const { error: jErr } = await supabase
     .from("task_cross_projects")
     .insert({ task_id: data.id, project_id: projectId, status: "todo" });
 
-  if (jErr) throw new Error(jErr.message);
+  if (jErr) return { ok: false, error: friendlyTaskError(jErr.message) };
 
   // 3. Aggiungi i link cross-project selezionati
   if (crossProjectIds.length > 0) {
     const { error: cErr } = await supabase.from("task_cross_projects").insert(
       crossProjectIds.map((pid) => ({ task_id: data.id, project_id: pid, status: "todo" }))
     );
-    if (cErr) throw new Error(cErr.message);
+    if (cErr) return { ok: false, error: friendlyTaskError(cErr.message) };
     for (const pid of crossProjectIds) revalidatePath(`/projects/${pid}`);
   }
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function updateTask(
   id: string,
   projectId: string,
   formData: FormData
-) {
+): Promise<TaskActionResult> {
   const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
+  if (!title) return { ok: true };
 
   const description = String(formData.get("description") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -383,7 +402,7 @@ export async function updateTask(
     .update({ title, description, notes, priority, type, is_cross_functional: isCross })
     .eq("id", id);
 
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, error: friendlyTaskError(error.message) };
 
   // Sincronizza i link cross-project preservando gli status esistenti
   const { added, removed } = await syncCrossProjects(id, projectId, crossProjectIds);
@@ -392,6 +411,7 @@ export async function updateTask(
   for (const pid of allAffected) revalidatePath(`/projects/${pid}`);
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function moveTask(
@@ -433,12 +453,14 @@ export async function deleteTask(id: string, projectId: string) {
  * I project_ids vengono letti dal form: il primo diventa project_id (primario),
  * gli altri diventano link cross-funzionali.
  */
-export async function createTaskFromHome(formData: FormData) {
+export async function createTaskFromHome(
+  formData: FormData
+): Promise<TaskActionResult> {
   const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
+  if (!title) return { ok: true };
 
   const projectIds = formData.getAll("project_ids").map(String).filter(Boolean);
-  if (projectIds.length === 0) return;
+  if (projectIds.length === 0) return { ok: true };
 
   const description = String(formData.get("description") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
@@ -456,24 +478,25 @@ export async function createTaskFromHome(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, error: friendlyTaskError(error.message) };
 
   // Riga primaria nella junction
   const { error: jErr } = await supabase
     .from("task_cross_projects")
     .insert({ task_id: data.id, project_id: primaryProjectId, status: "todo" });
-  if (jErr) throw new Error(jErr.message);
+  if (jErr) return { ok: false, error: friendlyTaskError(jErr.message) };
 
   // Righe cross-project
   if (crossProjectIds.length > 0) {
     const { error: cErr } = await supabase
       .from("task_cross_projects")
       .insert(crossProjectIds.map((pid) => ({ task_id: data.id, project_id: pid, status: "todo" })));
-    if (cErr) throw new Error(cErr.message);
+    if (cErr) return { ok: false, error: friendlyTaskError(cErr.message) };
   }
 
   for (const pid of projectIds) revalidatePath(`/projects/${pid}`);
   revalidatePath("/");
+  return { ok: true };
 }
 
 // ----------------------------------------------------------------
