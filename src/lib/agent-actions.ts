@@ -39,7 +39,7 @@ export async function prepareAgentTask(
 
   const { data: task, error: taskErr } = await supabase
     .from("tasks")
-    .select("title, description, notes, type")
+    .select("id, title, description, notes, type")
     .eq("id", taskId)
     .maybeSingle();
   if (taskErr) throw new Error(taskErr.message);
@@ -99,14 +99,18 @@ export async function prepareAgentTask(
       "Nessun repository collegato a questo progetto: niente branch automatico.";
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || null;
+
   const prompt = buildAgentPrompt({
     task: {
+      id: taskId,
       title: task.title as string,
       description: (task.description as string | null) ?? null,
       notes: (task.notes as string | null) ?? null,
       type,
     },
     project: {
+      id: projectId,
       name: project.name as string,
       framework: (project.framework as string | null) ?? null,
       language: (project.language as string | null) ?? null,
@@ -117,6 +121,7 @@ export async function prepareAgentTask(
     repoUrl,
     branch,
     defaultBranch,
+    appUrl,
   });
 
   return {
