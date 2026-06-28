@@ -30,7 +30,12 @@ export async function GET(
     .select("task_id, status")
     .eq("project_id", projectId);
 
-  if (statusFilter === "todo" || statusFilter === "in_progress" || statusFilter === "done") {
+  if (
+    statusFilter === "todo" ||
+    statusFilter === "in_progress" ||
+    statusFilter === "test" ||
+    statusFilter === "done"
+  ) {
     junctionQuery = junctionQuery.eq("status", statusFilter);
   }
 

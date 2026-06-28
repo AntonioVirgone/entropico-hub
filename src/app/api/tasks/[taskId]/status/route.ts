@@ -27,10 +27,10 @@ export async function PATCH(
   const projectId = String(body.project_id ?? "").trim();
   if (!projectId) return json({ error: "Il campo 'project_id' è obbligatorio." }, 400);
 
-  const STATUSES = ["todo", "in_progress", "done"];
+  const STATUSES = ["todo", "in_progress", "test", "done"];
   const taskStatus = body.status as TaskStatus;
   if (!STATUSES.includes(taskStatus)) {
-    return json({ error: "Il campo 'status' deve essere 'todo', 'in_progress' o 'done'." }, 400);
+    return json({ error: "Il campo 'status' deve essere 'todo', 'in_progress', 'test' o 'done'." }, 400);
   }
 
   if (!(await projectBelongsToUser(supabase, projectId, userId))) {

@@ -10,6 +10,7 @@ import { TaskCard } from "@/components/task-card";
 const STATUS_DOT: Record<TaskStatus, string> = {
   todo: "bg-slate-400",
   in_progress: "bg-blue-500",
+  test: "bg-amber-500",
   done: "bg-emerald-500",
 };
 
