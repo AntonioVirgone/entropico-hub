@@ -45,6 +45,17 @@ export interface Task {
   cross_project_ids: string[];
 }
 
+/** Criteri di ordinamento della griglia progetti nella home. */
+export type ProjectSort = "created" | "alpha" | "last_task";
+
+export const DEFAULT_PROJECT_SORT: ProjectSort = "created";
+
+export const PROJECT_SORT_OPTIONS: { value: ProjectSort; label: string }[] = [
+  { value: "created", label: "Data di creazione" },
+  { value: "alpha", label: "Ordine alfabetico" },
+  { value: "last_task", label: "Ultimo task creato" },
+];
+
 export const TASK_STATUSES: { value: TaskStatus; label: string }[] = [
   { value: "todo", label: "Da fare" },
   { value: "in_progress", label: "In corso" },

@@ -82,6 +82,38 @@ export async function getProjects(): Promise<Project[]> {
   return (data ?? []) as Project[];
 }
 
+/**
+ * Mappa projectId → data di creazione del task più recente del progetto.
+ * Usa la junction (come i conteggi) così include anche i task cross-funzionali.
+ * I progetti senza task non compaiono nella mappa.
+ */
+export async function getLastTaskCreatedAt(): Promise<Record<string, string>> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("task_cross_projects")
+    .select("project_id, tasks(created_at)");
+
+  if (error) throw new Error(error.message);
+
+  const lastByProject: Record<string, string> = {};
+  for (const row of data ?? []) {
+    const projectId = row.project_id as string;
+    // La relazione task_id → tasks è uno-a-uno, ma il client la tipizza come array.
+    const taskRel = row.tasks as
+      | { created_at: string }
+      | { created_at: string }[]
+      | null;
+    const createdAt = Array.isArray(taskRel)
+      ? taskRel[0]?.created_at
+      : taskRel?.created_at;
+    if (!createdAt) continue;
+    if (!lastByProject[projectId] || createdAt > lastByProject[projectId]) {
+      lastByProject[projectId] = createdAt;
+    }
+  }
+  return lastByProject;
+}
+
 export async function getProject(id: string): Promise<Project | null> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
