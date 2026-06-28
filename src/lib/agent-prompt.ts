@@ -9,12 +9,14 @@ import type { TaskType } from "@/lib/types";
 
 export interface AgentPromptInput {
   task: {
+    id: string;
     title: string;
     description: string | null;
     notes: string | null;
     type: TaskType;
   };
   project: {
+    id: string;
     name: string;
     framework: string | null;
     language: string | null;
@@ -25,6 +27,8 @@ export interface AgentPromptInput {
   repoUrl: string | null;
   branch: string | null;
   defaultBranch: string | null;
+  /** URL pubblico della web app per le chiamate REST (null se non configurato). */
+  appUrl: string | null;
 }
 
 function objectiveFor(type: TaskType): string {
@@ -53,6 +57,52 @@ function objectiveFor(type: TaskType): string {
         "- Aggiorna/integra i test e la documentazione se pertinente.",
       ].join("\n");
   }
+}
+
+/**
+ * Sezione che spiega all'agente come creare/aggiornare task sul progetto via
+ * REST mentre lavora (es. registrare follow-up scoperti, segnare lo stato).
+ * Gli endpoint sono quelli già esposti dalla web app e autenticati con il
+ * token personale via header `Authorization: Bearer`.
+ */
+function taskApiSection(input: AgentPromptInput): string {
+  const { task, project, appUrl } = input;
+  const base = appUrl ?? "https://LA-TUA-APP";
+
+  return [
+    "── API GESTIONE TASK (opzionale, mentre lavori) ──",
+    "Puoi creare e aggiornare i task di questo progetto via REST: utile per",
+    "registrare i follow-up che scopri e per aggiornare lo stato del lavoro.",
+    "",
+    "Configura una volta sola nel tuo shell (il token si genera dalla pagina",
+    '"Token API" della web app):',
+    "```bash",
+    `export ENTROPICO_API_TOKEN="<il-tuo-token>"`,
+    "```",
+    "Riferimenti di questo task:",
+    `- Base URL:   ${base}`,
+    `- project_id: ${project.id}`,
+    `- task_id (task corrente): ${task.id}`,
+    "Autenticazione: header `Authorization: Bearer $ENTROPICO_API_TOKEN` (Content-Type: application/json).",
+    "",
+    "Endpoint disponibili:",
+    `- Crea task:      POST  ${base}/api/projects/${project.id}/tasks`,
+    `                  body: { "title", "description"?, "notes"?, "priority"? (low|medium|high), "type"? (feature|bug|analysis) }`,
+    `- Cambia stato:   PATCH ${base}/api/tasks/<task_id>/status`,
+    `                  body: { "project_id": "${project.id}", "status": "todo|in_progress|done" }`,
+    `- Modifica task:  PATCH ${base}/api/tasks/<task_id>`,
+    `                  body: { "project_id": "${project.id}", "title", "description"?, "notes"?, "priority"?, "type"? }`,
+    `- Elenca task:    GET   ${base}/api/projects/${project.id}/tasks`,
+    "",
+    "Esempio — crea un follow-up scoperto durante il lavoro:",
+    "```bash",
+    `curl -s -X POST "${base}/api/projects/${project.id}/tasks" \\`,
+    `  -H "Authorization: Bearer $ENTROPICO_API_TOKEN" \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d '{"title":"Follow-up: …","type":"feature","priority":"medium"}'`,
+    "```",
+    "Suggerimento: porta questo task a `in_progress` quando inizi e, se appropriato, a `done` alla fine.",
+  ].join("\n");
 }
 
 export function buildAgentPrompt(input: AgentPromptInput): string {
@@ -115,6 +165,8 @@ export function buildAgentPrompt(input: AgentPromptInput): string {
       : "5. Al termine, riassumi cosa hai fatto e come verificarlo.",
     "6. Crea una documentazione tecnica relativa alle modifiche fatte e salvala nella cartella docs del progetto con il nome della feature appena svolta. Se la cartella docs non esiste creala. La documentazione deve essere sempre in formato .md"
   );
+
+  lines.push("", taskApiSection(input));
 
   return lines.join("\n");
 }
