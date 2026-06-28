@@ -89,7 +89,7 @@ function taskApiSection(input: AgentPromptInput): string {
     `- Crea task:      POST  ${base}/api/projects/${project.id}/tasks`,
     `                  body: { "title", "description"?, "notes"?, "priority"? (low|medium|high), "type"? (feature|bug|analysis) }`,
     `- Cambia stato:   PATCH ${base}/api/tasks/<task_id>/status`,
-    `                  body: { "project_id": "${project.id}", "status": "todo|in_progress|done" }`,
+    `                  body: { "project_id": "${project.id}", "status": "todo|in_progress|test|done" }`,
     `- Modifica task:  PATCH ${base}/api/tasks/<task_id>`,
     `                  body: { "project_id": "${project.id}", "title", "description"?, "notes"?, "priority"?, "type"? }`,
     `- Elenca task:    GET   ${base}/api/projects/${project.id}/tasks`,
