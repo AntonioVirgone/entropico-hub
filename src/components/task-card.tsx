@@ -33,7 +33,7 @@ import { TaskDialog } from "@/components/task-dialog";
 import { AgentTaskDialog } from "@/components/agent-task-dialog";
 import { useConfirm } from "@/components/confirm-dialog";
 
-const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "done"];
+const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "test", "done"];
 
 const PRIORITY_STYLES: Record<string, string> = {
   low: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",

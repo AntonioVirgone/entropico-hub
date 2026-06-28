@@ -1,5 +1,5 @@
 export type ProjectStatus = "active" | "archived";
-export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskStatus = "todo" | "in_progress" | "test" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskType = "feature" | "bug" | "analysis";
 export type IdeaStatus =
@@ -59,6 +59,7 @@ export const PROJECT_SORT_OPTIONS: { value: ProjectSort; label: string }[] = [
 export const TASK_STATUSES: { value: TaskStatus; label: string }[] = [
   { value: "todo", label: "Da fare" },
   { value: "in_progress", label: "In corso" },
+  { value: "test", label: "Test" },
   { value: "done", label: "Fatto" },
 ];
 
