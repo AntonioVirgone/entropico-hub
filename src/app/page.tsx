@@ -3,23 +3,74 @@ import { FolderPlus, Plus } from "lucide-react";
 import {
   getGithubConnection,
   getHighPriorityActiveTasks,
+  getLastTaskCreatedAt,
   getProjects,
   getTaskCounts,
 } from "@/lib/queries";
+import {
+  DEFAULT_PROJECT_SORT,
+  PROJECT_SORT_OPTIONS,
+  type ProjectSort as ProjectSortValue,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { HighPriorityTasks } from "@/components/high-priority-tasks";
 import { ProjectCard } from "@/components/project-card";
 import { ProjectDialog } from "@/components/project-dialog";
+import { ProjectSort } from "@/components/project-sort";
 import { StaleTasksAlert } from "@/components/stale-tasks-alert";
 import { TaskDialog } from "@/components/task-dialog";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const [projects, highPriorityTasks, github] = await Promise.all([
+type ProjectWithCounts = {
+  project: Awaited<ReturnType<typeof getProjects>>[number];
+  total: number;
+  done: number;
+};
+
+/** Riordina i progetti secondo il criterio scelto, senza mutare l'input. */
+function sortProjects(
+  items: ProjectWithCounts[],
+  sort: ProjectSortValue,
+  lastTaskAt: Record<string, string>
+): ProjectWithCounts[] {
+  const sorted = [...items];
+  if (sort === "alpha") {
+    sorted.sort((a, b) =>
+      a.project.name.localeCompare(b.project.name, "it", { sensitivity: "base" })
+    );
+  } else if (sort === "last_task") {
+    sorted.sort((a, b) => {
+      const ta = lastTaskAt[a.project.id];
+      const tb = lastTaskAt[b.project.id];
+      // I progetti senza task finiscono in fondo; gli altri dal più recente.
+      if (!ta && !tb) return 0;
+      if (!ta) return 1;
+      if (!tb) return -1;
+      return tb < ta ? -1 : tb > ta ? 1 : 0;
+    });
+  }
+  // "created": già ordinati per data di creazione (più recenti prima) dalla query.
+  return sorted;
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string }>;
+}) {
+  const { sort: sortParam } = await searchParams;
+  const sort: ProjectSortValue = PROJECT_SORT_OPTIONS.some(
+    (o) => o.value === sortParam
+  )
+    ? (sortParam as ProjectSortValue)
+    : DEFAULT_PROJECT_SORT;
+
+  const [projects, highPriorityTasks, github, lastTaskAt] = await Promise.all([
     getProjects(),
     getHighPriorityActiveTasks(),
     getGithubConnection(),
+    getLastTaskCreatedAt(),
   ]);
 
   const counts = await Promise.all(projects.map((p) => getTaskCounts(p.id)));
@@ -28,8 +79,16 @@ export default async function DashboardPage() {
     ...counts[i],
   }));
 
-  const active = withCounts.filter((p) => p.project.status === "active");
-  const archived = withCounts.filter((p) => p.project.status === "archived");
+  const active = sortProjects(
+    withCounts.filter((p) => p.project.status === "active"),
+    sort,
+    lastTaskAt
+  );
+  const archived = sortProjects(
+    withCounts.filter((p) => p.project.status === "archived"),
+    sort,
+    lastTaskAt
+  );
 
   return (
     <div className="space-y-8">
@@ -56,6 +115,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ProjectSort value={sort} />
           <TaskDialog
             mode="home"
             allProjects={projects}
