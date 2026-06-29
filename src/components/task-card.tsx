@@ -21,6 +21,7 @@ import { deleteTask, moveTask } from "@/lib/actions";
 import {
   TASK_PRIORITIES,
   TASK_STATUSES,
+  type Epic,
   type Project,
   type Task,
   type TaskStatus,
@@ -47,11 +48,13 @@ export function TaskCard({
   overlay = false,
   allProjects = [],
   projectId,
+  epics = [],
 }: {
   task: Task;
   overlay?: boolean;
   allProjects?: Project[];
   projectId?: string;
+  epics?: Epic[];
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -255,6 +258,8 @@ export function TaskCard({
               projectId={currentProjectId}
               task={task}
               allProjects={allProjects}
+              epics={epics}
+              epicId={task.epic_id ?? undefined}
               trigger={
                 <Button
                   size="icon"

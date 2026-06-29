@@ -2,6 +2,7 @@ export type ProjectStatus = "active" | "archived";
 export type TaskStatus = "todo" | "in_progress" | "test" | "done";
 export type TaskPriority = "low" | "medium" | "high";
 export type TaskType = "feature" | "bug" | "analysis";
+export type EpicStatus = TaskStatus;
 export type IdeaStatus =
   | "idea"
   | "valutazione"
@@ -31,6 +32,7 @@ export interface Project {
 export interface Task {
   id: string;
   project_id: string;
+  epic_id: string | null;
   title: string;
   description: string | null;
   notes: string | null;
@@ -43,6 +45,24 @@ export interface Task {
   updated_at: string;
   // Popolato dalla query (non è una colonna DB): project_id di tutti i progetti collegati
   cross_project_ids: string[];
+}
+
+export interface Epic {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: EpicStatus;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EpicWithCounts extends Epic {
+  /** Task totali di questo progetto assegnati a questa epica */
+  total: number;
+  /** Task in status "done" di questo progetto assegnati a questa epica */
+  done: number;
 }
 
 /** Criteri di ordinamento della griglia progetti nella home. */

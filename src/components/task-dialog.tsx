@@ -8,6 +8,7 @@ import { createTask, createTaskFromHome, updateTask } from "@/lib/actions";
 import {
   TASK_PRIORITIES,
   TASK_TYPES,
+  type Epic,
   type Project,
   type Task,
   type TaskPriority,
@@ -45,12 +46,18 @@ type TaskDialogProps = (HomeMode | ProjectMode) & {
   task?: Task;
   trigger: React.ReactNode;
   allProjects?: Project[];
+  /** Epiche disponibili per il progetto corrente (per il selettore in modalità project). */
+  epics?: Epic[];
+  /** Epica corrente (pre-selezionata in creazione, o current epic del task in modifica). */
+  epicId?: string;
 };
 
 export function TaskDialog({
   task,
   trigger,
   allProjects = [],
+  epics = [],
+  epicId: epicIdProp,
   ...modeProps
 }: TaskDialogProps) {
   const router = useRouter();
@@ -64,6 +71,9 @@ export function TaskDialog({
   const [isCross, setIsCross] = useState(task?.is_cross_functional ?? false);
   const [selectedCrossIds, setSelectedCrossIds] = useState<string[]>(
     task?.cross_project_ids ?? []
+  );
+  const [selectedEpicId, setSelectedEpicId] = useState<string>(
+    epicIdProp ?? task?.epic_id ?? ""
   );
   // Modalità home: progetti selezionati per il nuovo task (almeno 1 richiesto)
   const [selectedHomeIds, setSelectedHomeIds] = useState<string[]>([]);
@@ -81,6 +91,7 @@ export function TaskDialog({
     setType(task?.type ?? "feature");
     setIsCross(task?.is_cross_functional ?? false);
     setSelectedCrossIds(task?.cross_project_ids ?? []);
+    setSelectedEpicId(epicIdProp ?? task?.epic_id ?? "");
     setSelectedHomeIds([]);
     setHomeError(false);
     setError(null);
@@ -250,6 +261,28 @@ export function TaskDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {/* ── Selettore epica (modalità project, più di una epica disponibile) ── */}
+          {!isHomeMode && isEdit && epics.length > 1 ? (
+            <div className="space-y-2">
+              <Label>Epica</Label>
+              <input type="hidden" name="epic_id" value={selectedEpicId} />
+              <Select value={selectedEpicId} onValueChange={setSelectedEpicId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona un'epica" />
+                </SelectTrigger>
+                <SelectContent>
+                  {epics.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : !isHomeMode && selectedEpicId ? (
+            <input type="hidden" name="epic_id" value={selectedEpicId} />
+          ) : null}
 
           {/* ── Assegnazione progetti (modalità home) ── */}
           {isHomeMode && (

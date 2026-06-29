@@ -3,16 +3,15 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, GitBranch, Plus } from "lucide-react";
 
 import {
+  getEpics,
   getGithubConnection,
   getProject,
   getProjectDocuments,
-  getProjects,
-  getTasks,
 } from "@/lib/queries";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/kanban-board";
-import { TaskDialog } from "@/components/task-dialog";
+import { EpicBoard } from "@/components/epic-board";
+import { EpicDialog } from "@/components/epic-dialog";
 import { TechBadges } from "@/components/tech-badges";
 import { DocumentsModal } from "@/components/documents-modal";
 import { GitHubRepoButton } from "@/components/github-repo-button";
@@ -26,10 +25,9 @@ export default async function ProjectBoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [project, tasks, allProjects, documents, github] = await Promise.all([
+  const [project, epics, documents, github] = await Promise.all([
     getProject(id),
-    getTasks(id),
-    getProjects(),
+    getEpics(id),
     getProjectDocuments(id),
     getGithubConnection(),
   ]);
@@ -95,12 +93,11 @@ export default async function ProjectBoardPage({
               />
             )}
             <DocumentsModal projectId={project.id} documents={documents} />
-            <TaskDialog
+            <EpicDialog
               projectId={project.id}
-              allProjects={allProjects}
               trigger={
                 <Button>
-                  <Plus /> Aggiungi task
+                  <Plus /> Nuova epica
                 </Button>
               }
             />
@@ -108,7 +105,7 @@ export default async function ProjectBoardPage({
         </div>
       </div>
 
-      <KanbanBoard projectId={project.id} tasks={tasks} allProjects={allProjects} />
+      <EpicBoard projectId={project.id} epics={epics} />
     </div>
   );
 }
