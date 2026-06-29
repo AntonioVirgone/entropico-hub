@@ -8,6 +8,7 @@ import { createUserRepo, getRepo, parseGithubRepoInput, GithubError } from "@/li
 import { slugify } from "@/lib/utils";
 import type {
   DocumentFormat,
+  EpicStatus,
   IdeaStatus,
   ProjectStatus,
   TaskPriority,
@@ -265,6 +266,101 @@ export async function deleteProject(id: string) {
 }
 
 // ----------------------------------------------------------------
+// Epiche
+// ----------------------------------------------------------------
+
+export async function createEpic(
+  projectId: string,
+  formData: FormData
+): Promise<TaskActionResult> {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { ok: true };
+
+  const description = String(formData.get("description") ?? "").trim() || null;
+
+  const supabase = await createSupabaseServerClient();
+
+  const { count } = await supabase
+    .from("epics")
+    .select("*", { count: "exact", head: true })
+    .eq("project_id", projectId);
+
+  const { error } = await supabase.from("epics").insert({
+    project_id: projectId,
+    title,
+    description,
+    status: "todo",
+    position: count ?? 0,
+  });
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+export async function updateEpic(
+  id: string,
+  projectId: string,
+  formData: FormData
+): Promise<TaskActionResult> {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { ok: true };
+
+  const description = String(formData.get("description") ?? "").trim() || null;
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("epics")
+    .update({ title, description })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/epics/${id}`);
+  return { ok: true };
+}
+
+export async function moveEpic(
+  id: string,
+  projectId: string,
+  status: EpicStatus
+) {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("epics")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteEpic(
+  id: string,
+  projectId: string
+): Promise<TaskActionResult> {
+  const supabase = await createSupabaseServerClient();
+
+  const { count } = await supabase
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("epic_id", id);
+
+  if (count && count > 0) {
+    return {
+      ok: false,
+      error: `Questa epica contiene ${count} task. Spostali in un'altra epica o eliminali prima di procedere.`,
+    };
+  }
+
+  const { error } = await supabase.from("epics").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+// ----------------------------------------------------------------
 // Tasks
 // ----------------------------------------------------------------
 
@@ -348,13 +444,14 @@ export async function createTask(
   const type = (String(formData.get("type") ?? "feature") || "feature") as TaskType;
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
+  const epicId = String(formData.get("epic_id") ?? "").trim() || null;
 
   const supabase = await createSupabaseServerClient();
 
   // 1. Crea il task (senza status — lo status vive nella junction)
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ project_id: projectId, title, description, notes, priority, type, is_cross_functional: isCross })
+    .insert({ project_id: projectId, title, description, notes, priority, type, is_cross_functional: isCross, epic_id: epicId })
     .select("id")
     .single();
 
@@ -394,12 +491,14 @@ export async function updateTask(
   const type = (String(formData.get("type") ?? "feature") || "feature") as TaskType;
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
+  const rawEpicId = String(formData.get("epic_id") ?? "").trim();
+  const epicUpdate = rawEpicId ? { epic_id: rawEpicId } : {};
 
   // Aggiorna i campi del task (NON lo status — quello è nella junction)
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("tasks")
-    .update({ title, description, notes, priority, type, is_cross_functional: isCross })
+    .update({ title, description, notes, priority, type, is_cross_functional: isCross, ...epicUpdate })
     .eq("id", id);
 
   if (error) return { ok: false, error: friendlyTaskError(error.message) };
@@ -472,9 +571,20 @@ export async function createTaskFromHome(
 
   const supabase = await createSupabaseServerClient();
 
+  // Auto-assegna alla prima epica del progetto primario (se esiste)
+  const { data: firstEpic } = await supabase
+    .from("epics")
+    .select("id")
+    .eq("project_id", primaryProjectId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const epicId = firstEpic?.id ?? null;
+
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ project_id: primaryProjectId, title, description, notes, priority, type, is_cross_functional: isCross })
+    .insert({ project_id: primaryProjectId, title, description, notes, priority, type, is_cross_functional: isCross, epic_id: epicId })
     .select("id")
     .single();
 

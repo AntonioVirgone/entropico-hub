@@ -14,7 +14,7 @@ import {
 } from "@dnd-kit/core";
 
 import { moveTask } from "@/lib/actions";
-import { TASK_STATUSES, type Project, type Task, type TaskStatus } from "@/lib/types";
+import { TASK_STATUSES, type Epic, type Project, type Task, type TaskStatus } from "@/lib/types";
 import { KanbanColumn } from "@/components/kanban-column";
 import { TaskCard } from "@/components/task-card";
 
@@ -22,10 +22,12 @@ export function KanbanBoard({
   projectId,
   tasks: initialTasks,
   allProjects = [],
+  epics = [],
 }: {
   projectId: string;
   tasks: Task[];
   allProjects?: Project[];
+  epics?: Epic[];
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
@@ -92,6 +94,7 @@ export function KanbanBoard({
             tasks={tasks.filter((t) => t.status === status.value)}
             allProjects={allProjects}
             projectId={projectId}
+            epics={epics}
           />
         ))}
       </div>
@@ -103,6 +106,7 @@ export function KanbanBoard({
             overlay
             allProjects={allProjects}
             projectId={projectId}
+            epics={epics}
           />
         )}
       </DragOverlay>

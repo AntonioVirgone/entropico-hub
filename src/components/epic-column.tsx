@@ -5,11 +5,11 @@ import { useDroppable } from "@dnd-kit/core";
 import { Inbox } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { TASK_STATUSES, type Epic, type Project, type Task, type TaskStatus } from "@/lib/types";
+import { TASK_STATUSES, type EpicWithCounts, type TaskStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { TaskCard } from "@/components/task-card";
+import { EpicCard } from "@/components/epic-card";
 
-/** Task mostrati nella colonna "Fatto" prima del collapse. */
+/** Epiche mostrate nella colonna "Fatto" prima del collapse. */
 const DONE_VISIBLE_LIMIT = 4;
 
 const STATUS_DOT: Record<TaskStatus, string> = {
@@ -19,27 +19,23 @@ const STATUS_DOT: Record<TaskStatus, string> = {
   done: "bg-emerald-500",
 };
 
-export function KanbanColumn({
+export function EpicColumn({
   status,
-  tasks,
-  allProjects = [],
+  epics,
   projectId,
-  epics = [],
 }: {
   status: (typeof TASK_STATUSES)[number];
-  tasks: Task[];
-  allProjects?: Project[];
+  epics: EpicWithCounts[];
   projectId: string;
-  epics?: Epic[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status.value });
   const [expanded, setExpanded] = useState(false);
 
   const isDoneColumn = status.value === "done";
   const hiddenCount =
-    isDoneColumn && !expanded ? Math.max(0, tasks.length - DONE_VISIBLE_LIMIT) : 0;
-  const visibleTasks =
-    isDoneColumn && !expanded ? tasks.slice(0, DONE_VISIBLE_LIMIT) : tasks;
+    isDoneColumn && !expanded ? Math.max(0, epics.length - DONE_VISIBLE_LIMIT) : 0;
+  const visibleEpics =
+    isDoneColumn && !expanded ? epics.slice(0, DONE_VISIBLE_LIMIT) : epics;
 
   return (
     <div
@@ -56,28 +52,20 @@ export function KanbanColumn({
           {status.label}
         </h2>
         <span className="text-xs text-muted-foreground rounded-full bg-background px-2 py-0.5 shadow-sm">
-          {tasks.length}
+          {epics.length}
         </span>
       </div>
 
       <div ref={setNodeRef} className="flex-1 space-y-2 min-h-[80px]">
-        {tasks.length === 0 ? (
+        {epics.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-1 py-6 text-center">
             <Inbox className="h-5 w-5 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground">
-              Trascina qui un task
-            </p>
+            <p className="text-xs text-muted-foreground">Trascina qui un'epica</p>
           </div>
         ) : (
           <>
-            {visibleTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                allProjects={allProjects}
-                projectId={projectId}
-                epics={epics}
-              />
+            {visibleEpics.map((epic) => (
+              <EpicCard key={epic.id} epic={epic} projectId={projectId} />
             ))}
 
             {hiddenCount > 0 && (
@@ -87,11 +75,11 @@ export function KanbanColumn({
                 className="w-full text-xs text-muted-foreground"
                 onClick={() => setExpanded(true)}
               >
-                +{hiddenCount} completati
+                +{hiddenCount} completate
               </Button>
             )}
 
-            {isDoneColumn && expanded && tasks.length > DONE_VISIBLE_LIMIT && (
+            {isDoneColumn && expanded && epics.length > DONE_VISIBLE_LIMIT && (
               <Button
                 variant="ghost"
                 size="sm"

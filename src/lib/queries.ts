@@ -2,6 +2,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveProjectColor } from "@/lib/tech-colors";
 import type {
   ApiToken,
+  Epic,
+  EpicWithCounts,
   HighPriorityTask,
   Project,
   ProjectDocument,
@@ -126,7 +128,7 @@ export async function getProject(id: string): Promise<Project | null> {
   return (data as Project) ?? null;
 }
 
-export async function getTasks(projectId: string): Promise<Task[]> {
+export async function getTasks(projectId: string, epicId?: string): Promise<Task[]> {
   const supabase = await createSupabaseServerClient();
 
   // 1. Leggi tutti i link (task_id, status) per questo progetto dalla junction
@@ -144,12 +146,18 @@ export async function getTasks(projectId: string): Promise<Task[]> {
   const taskIds = Object.keys(statusByTaskId);
 
   // 2. Carica i dati completi dei task + tutti i loro link cross-project
-  const { data: tasks, error: e2 } = await supabase
+  let tasksQuery = supabase
     .from("tasks")
     .select("*, task_cross_projects(project_id)")
     .in("id", taskIds)
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
+
+  if (epicId) {
+    tasksQuery = tasksQuery.eq("epic_id", epicId);
+  }
+
+  const { data: tasks, error: e2 } = await tasksQuery;
 
   if (e2) throw new Error(e2.message);
 
@@ -164,6 +172,78 @@ export async function getTasks(projectId: string): Promise<Task[]> {
       cross_project_ids: (task_cross_projects ?? []).map((cp) => cp.project_id),
     } as Task;
   });
+}
+
+/**
+ * Restituisce tutte le epiche di un progetto, ordinate per position poi created_at,
+ * con conteggio task totali e completati per questo specifico progetto.
+ */
+export async function getEpics(projectId: string): Promise<EpicWithCounts[]> {
+  const supabase = await createSupabaseServerClient();
+
+  const { data: epics, error: e1 } = await supabase
+    .from("epics")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (e1) throw new Error(e1.message);
+  if (!epics || epics.length === 0) return [];
+
+  // Recupera tutti i link junction + epic_id dei task per questo progetto
+  const { data: links, error: e2 } = await supabase
+    .from("task_cross_projects")
+    .select("task_id, status")
+    .eq("project_id", projectId);
+
+  if (e2) throw new Error(e2.message);
+
+  const taskIds = (links ?? []).map((l) => l.task_id as string);
+
+  let counts: Record<string, { total: number; done: number }> = {};
+
+  if (taskIds.length > 0) {
+    const { data: taskEpics, error: e3 } = await supabase
+      .from("tasks")
+      .select("id, epic_id")
+      .in("id", taskIds);
+
+    if (e3) throw new Error(e3.message);
+
+    const statusByTaskId = Object.fromEntries(
+      (links ?? []).map((l) => [l.task_id as string, l.status as TaskStatus])
+    );
+
+    for (const task of taskEpics ?? []) {
+      const eid = task.epic_id as string | null;
+      if (!eid) continue;
+      if (!counts[eid]) counts[eid] = { total: 0, done: 0 };
+      counts[eid].total++;
+      if (statusByTaskId[task.id as string] === "done") counts[eid].done++;
+    }
+  }
+
+  return (epics as Epic[]).map((e) => ({
+    ...e,
+    total: counts[e.id]?.total ?? 0,
+    done: counts[e.id]?.done ?? 0,
+  }));
+}
+
+/**
+ * Restituisce una singola epica per id, o null se non trovata.
+ */
+export async function getEpic(epicId: string): Promise<Epic | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("epics")
+    .select("*")
+    .eq("id", epicId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data as Epic) ?? null;
 }
 
 export async function getTaskCounts(
