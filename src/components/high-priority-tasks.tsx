@@ -1,8 +1,22 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Share2 } from "lucide-react";
 
 import type { HighPriorityTask } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+/** Quanti task mostrare in linea nella home prima di nascondere il resto. */
+const VISIBLE_LIMIT = 5;
 
 const STATUS_LABELS: Record<string, string> = {
   todo: "Da fare",
@@ -24,15 +38,8 @@ function formatDate(iso: string): string {
   });
 }
 
-export function HighPriorityTasks({ tasks }: { tasks: HighPriorityTask[] }) {
-  if (tasks.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nessun task ad alta priorità in sospeso.
-      </p>
-    );
-  }
-
+/** Tabella presentazionale: rende l'elenco di task ricevuto, senza limiti. */
+function HighPriorityTable({ tasks }: { tasks: HighPriorityTask[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border shadow-sm">
       <table className="w-full text-sm">
@@ -80,10 +87,7 @@ export function HighPriorityTasks({ tasks }: { tasks: HighPriorityTask[] }) {
                 </span>
               </td>
               <td className="px-4 py-3">
-                <Badge
-                  variant="secondary"
-                  className={STATUS_STYLES[t.status]}
-                >
+                <Badge variant="secondary" className={STATUS_STYLES[t.status]}>
                   {STATUS_LABELS[t.status] ?? t.status}
                 </Badge>
               </td>
@@ -102,6 +106,50 @@ export function HighPriorityTasks({ tasks }: { tasks: HighPriorityTask[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+export function HighPriorityTasks({ tasks }: { tasks: HighPriorityTask[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (tasks.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nessun task ad alta priorità in sospeso.
+      </p>
+    );
+  }
+
+  const visible = tasks.slice(0, VISIBLE_LIMIT);
+  const hiddenCount = tasks.length - visible.length;
+
+  return (
+    <div className="space-y-3">
+      <HighPriorityTable tasks={visible} />
+
+      {hiddenCount > 0 && (
+        <div className="flex justify-center">
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            Mostra altro ({hiddenCount})
+          </Button>
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col">
+          <DialogHeader>
+            <DialogTitle>Task ad alta priorità</DialogTitle>
+            <DialogDescription>
+              Tutti i {tasks.length} task con priorità alta non ancora
+              completati.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto pr-1">
+            <HighPriorityTable tasks={tasks} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
