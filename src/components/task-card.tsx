@@ -132,7 +132,7 @@ export function TaskCard({
           </button>
         )}
 
-        <div className="flex flex-1 items-start justify-between gap-2 min-w-0">
+        <div className="flex-1 min-w-0">
           <p
             className={cn(
               "text-sm font-medium leading-snug",
@@ -141,7 +141,7 @@ export function TaskCard({
           >
             {task.title}
           </p>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 mt-1.5">
             {/* Badge tipo del task */}
             {task.type === "bug" ? (
               <Badge
