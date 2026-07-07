@@ -31,7 +31,11 @@ l'epica generica del progetto o la crea (titolo "Generica") se manca. Usata:
 
 - in `createTask` quando il form non specifica un'epica;
 - in `createTaskFromHome` come fallback quando il progetto non ha epiche;
-- in `POST /api/projects/{id}/tasks` per ogni task creato via API pubblica.
+- in `POST /api/projects/{id}/tasks` **solo se il body non include
+  `epic_id`** (vedi `docs/api-epiche.md` / `docs/creare-task-da-ai.md`): da
+  quando le epiche hanno anche API REST dedicate (create/modifica/elimina),
+  il flusso normale per un agente è creare/scegliere l'epica giusta e passare
+  sempre `epic_id` — questo fallback resta solo come rete di sicurezza.
 
 `updateTask` non è toccato: non azzera mai `epic_id` (e le epiche non si
 possono eliminare finché hanno task, `ON DELETE RESTRICT`), quindi non è un

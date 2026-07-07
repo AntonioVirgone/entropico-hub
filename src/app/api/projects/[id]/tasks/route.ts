@@ -112,9 +112,24 @@ export async function POST(
   const TYPES = ["feature", "bug", "analysis"];
   const type = TYPES.includes(String(body.type)) ? (body.type as TaskType) : "feature";
 
-  // Nessuna epica specificata dal chiamante: usa l'epica generica del progetto
-  // così il task non resta orfano (epic_id null) e invisibile ai conteggi.
-  const epicId = await ensureGenericEpic(supabase, projectId);
+  // Se il chiamante indica un'epica, deve appartenere a questo progetto.
+  // Altrimenti usa l'epica generica come rete di sicurezza (così il task non
+  // resta orfano/epic_id null e invisibile ai conteggi): preferibile comunque
+  // creare/scegliere sempre un'epica specifica via /api/projects/{id}/epics.
+  const rawEpicId = typeof body.epic_id === "string" ? body.epic_id.trim() : "";
+  let epicId: string;
+  if (rawEpicId) {
+    const { data: epic } = await supabase
+      .from("epics")
+      .select("id")
+      .eq("id", rawEpicId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (!epic) return json({ error: "'epic_id' non valido per questo progetto." }, 400);
+    epicId = rawEpicId;
+  } else {
+    epicId = await ensureGenericEpic(supabase, projectId);
+  }
 
   // 1. Crea il task
   const { data: task, error: e1 } = await supabase

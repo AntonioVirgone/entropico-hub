@@ -24,19 +24,27 @@ Tutte richiedono l'header `Authorization: Bearer <token>` (token generato dalla
 pagina **Token API**) e `Content-Type: application/json`. Le operazioni sono
 limitate ai progetti dell'utente proprietario del token.
 
+I task vivono sempre dentro un'**epica** (struttura Jira-like: epica →
+collezione di task): il flusso corretto è elencare/creare l'epica giusta e poi
+creare i task passando `epic_id`. Le API delle epiche sono documentate in
+`docs/api-epiche.md`.
+
 | Operazione | Metodo & path | Body |
 |------------|---------------|------|
-| **Crea task** | `POST /api/projects/{projectId}/tasks` | `{ title, description?, notes?, priority?, type? }` |
+| **Crea task** | `POST /api/projects/{projectId}/tasks` | `{ title, epic_id, description?, notes?, priority?, type? }` |
 | **Elenca task** | `GET /api/projects/{projectId}/tasks?status=&priority=` | — |
 | **Cambia stato** | `PATCH /api/tasks/{taskId}/status` | `{ project_id, status }` |
-| **Modifica task** | `PATCH /api/tasks/{taskId}` | `{ project_id, title, description?, notes?, priority?, type? }` |
+| **Modifica task** | `PATCH /api/tasks/{taskId}` | `{ project_id, title, epic_id?, description?, notes?, priority?, type? }` |
 | **Elimina task** | `DELETE /api/tasks/{taskId}` | `{ project_id }` |
 
 - `priority`: `low | medium | high` (default `medium`)
 - `type`: `feature | bug | analysis` (default `feature`)
 - `status`: `todo | in_progress | done`
+- `epic_id` è opzionale in creazione solo come rete di sicurezza: se omesso il
+  task finisce nell'epica generica del progetto (vedi `docs/epica-generica.md`)
+  invece di restare orfano. Il flusso normale prevede di indicarlo sempre.
 - Valori non validi di `priority`/`type` ricadono sul default; uno `status` non
-  valido restituisce `400`.
+  valido o un `epic_id` che non appartiene al progetto restituiscono `400`.
 
 Lo **stato** è gestito per progetto tramite la junction `task_cross_projects`
 (vedi `CLAUDE.md`): per questo gli endpoint di stato/modifica richiedono sempre

@@ -65,9 +65,24 @@ export async function PATCH(
   const TYPES = ["feature", "bug", "analysis"];
   const type = TYPES.includes(String(body.type)) ? (body.type as TaskType) : "feature";
 
+  const update: Record<string, unknown> = { title, description, notes, priority, type };
+
+  // epic_id è opzionale: se presente, deve appartenere allo stesso progetto.
+  if (typeof body.epic_id === "string" && body.epic_id.trim()) {
+    const rawEpicId = body.epic_id.trim();
+    const { data: epic } = await supabase
+      .from("epics")
+      .select("id")
+      .eq("id", rawEpicId)
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (!epic) return json({ error: "'epic_id' non valido per questo progetto." }, 400);
+    update.epic_id = rawEpicId;
+  }
+
   const { error } = await supabase
     .from("tasks")
-    .update({ title, description, notes, priority, type })
+    .update(update)
     .eq("id", taskId);
 
   if (error) return json({ error: error.message }, 500);

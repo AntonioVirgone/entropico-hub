@@ -31,8 +31,11 @@ Contenuti costruiti in `src/lib/entropico-scaffold.ts`
 
 `entropico/istruzioni.md` include: cosa sono i due file, come ottenere un
 token personale ("Token API" nella web app), l'id del progetto Entropico già
-compilato, tabella endpoint REST (stessa di `docs/creare-task-da-ai.md`),
-esempi `curl` che leggono i file (`TOKEN=$(cat entropico/api-token)`).
+compilato, il modello dati "prima l'epica, poi i task" (vedi
+`docs/api-epiche.md`), le tabelle degli endpoint REST per epiche e task
+(stesse di `docs/api-epiche.md` / `docs/creare-task-da-ai.md`), esempi `curl`
+che leggono i file (`TOKEN=$(cat entropico/api-token)`) mostrando prima la
+creazione di un'epica e poi di un task al suo interno.
 
 Lo scaffolding non è bloccante: se la scrittura dei file fallisce, il
 repository e il progetto restano comunque creati/collegati — l'errore viene
