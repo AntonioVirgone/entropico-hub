@@ -5,6 +5,7 @@ import { ArrowLeft, GitBranch, Plus } from "lucide-react";
 import {
   getEpics,
   getGithubConnection,
+  getOrphanTaskCount,
   getProject,
   getProjectDocuments,
 } from "@/lib/queries";
@@ -15,6 +16,7 @@ import { EpicDialog } from "@/components/epic-dialog";
 import { TechBadges } from "@/components/tech-badges";
 import { DocumentsModal } from "@/components/documents-modal";
 import { GitHubRepoButton } from "@/components/github-repo-button";
+import { OrphanTasksButton } from "@/components/orphan-tasks-button";
 import { resolveProjectColor } from "@/lib/tech-colors";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +27,12 @@ export default async function ProjectBoardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [project, epics, documents, github] = await Promise.all([
+  const [project, epics, documents, github, orphanTaskCount] = await Promise.all([
     getProject(id),
     getEpics(id),
     getProjectDocuments(id),
     getGithubConnection(),
+    getOrphanTaskCount(id),
   ]);
 
   if (!project) notFound();
@@ -93,6 +96,7 @@ export default async function ProjectBoardPage({
               />
             )}
             <DocumentsModal projectId={project.id} documents={documents} />
+            <OrphanTasksButton projectId={project.id} orphanCount={orphanTaskCount} />
             <EpicDialog
               projectId={project.id}
               trigger={

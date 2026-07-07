@@ -186,3 +186,30 @@ export async function createUserRepo(
   const data = (await res.json()) as CreatedRepo;
   return { html_url: data.html_url, full_name: data.full_name };
 }
+
+/**
+ * Crea (o aggiorna) un file nel repo con un commit dedicato, via
+ * "Create/Update file contents". Usata per lo scaffolding iniziale
+ * (cartella `entropico/`, `.gitignore`) subito dopo la creazione del repo.
+ */
+export async function createRepoFile(
+  token: string,
+  fullName: string,
+  path: string,
+  content: string,
+  message: string
+): Promise<void> {
+  const res = await fetch(
+    `${GITHUB_API}/repos/${fullName}/contents/${path}`,
+    {
+      method: "PUT",
+      headers: githubHeaders(token),
+      cache: "no-store",
+      body: JSON.stringify({
+        message,
+        content: Buffer.from(content, "utf-8").toString("base64"),
+      }),
+    }
+  );
+  if (!res.ok) await failGithub(res);
+}

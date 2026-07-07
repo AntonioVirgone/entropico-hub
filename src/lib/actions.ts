@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createUserRepo, getRepo, parseGithubRepoInput, GithubError } from "@/lib/github";
+import { createUserRepo, createRepoFile, getRepo, parseGithubRepoInput, GithubError } from "@/lib/github";
+import { buildEntropicoGitignore, buildEntropicoInstructions } from "@/lib/entropico-scaffold";
 import { slugify } from "@/lib/utils";
 import type {
   DocumentFormat,
@@ -147,12 +150,76 @@ async function createGithubRepoForProject(
       return `Repository creato (${repo.html_url}) ma collegamento non salvato: ${updErr.message}`;
     }
 
+    const scaffoldError = await scaffoldEntropicoFiles(
+      cred.access_token,
+      repo.full_name,
+      { projectId, projectName: opts.name }
+    );
+
     revalidatePath("/");
     revalidatePath(`/projects/${projectId}`);
+
+    if (scaffoldError) {
+      return `Repository creato (${repo.html_url}) ma la cartella entropico/ non è stata scritta correttamente: ${scaffoldError}`;
+    }
     return null;
   } catch (e) {
     if (e instanceof GithubError) return `GitHub: ${e.message}`;
     return "Errore imprevisto nella creazione del repository GitHub.";
+  }
+}
+
+/**
+ * Scrive nel repo appena creato la cartella `entropico/` (token e project id
+ * vuoti + istruzioni) e un `.gitignore` che li esclude, così l'agente che
+ * lavorerà sul progetto ha subito tutto il necessario per usare le API di
+ * Entropico. Non bloccante: un errore qui non invalida il repo già creato.
+ */
+async function scaffoldEntropicoFiles(
+  accessToken: string,
+  repoFullName: string,
+  project: { projectId: string; projectName: string }
+): Promise<string | null> {
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? null;
+    const instructions = buildEntropicoInstructions({
+      projectId: project.projectId,
+      projectName: project.projectName,
+      appUrl,
+    });
+
+    await createRepoFile(
+      accessToken,
+      repoFullName,
+      ".gitignore",
+      buildEntropicoGitignore(),
+      "chore: aggiungi .gitignore per i file entropico"
+    );
+    await createRepoFile(
+      accessToken,
+      repoFullName,
+      "entropico/api-token",
+      "",
+      "chore: aggiungi entropico/api-token (vuoto)"
+    );
+    await createRepoFile(
+      accessToken,
+      repoFullName,
+      "entropico/project-id",
+      "",
+      "chore: aggiungi entropico/project-id (vuoto)"
+    );
+    await createRepoFile(
+      accessToken,
+      repoFullName,
+      "entropico/istruzioni.md",
+      instructions,
+      "docs: istruzioni per le API Entropico"
+    );
+    return null;
+  } catch (e) {
+    if (e instanceof GithubError) return e.message;
+    return "errore imprevisto nella scrittura dei file.";
   }
 }
 
@@ -360,6 +427,69 @@ export async function deleteEpic(
   return { ok: true };
 }
 
+/**
+ * Trova l'epica generica del progetto (marcata `is_generic`) o la crea se
+ * manca. Usata come destinazione automatica per i task creati senza epica
+ * assegnata (es. dall'API pubblica), così non restano orfani con `epic_id`
+ * null e invisibili ai conteggi delle epiche.
+ */
+export async function ensureGenericEpic(
+  supabase: SupabaseClient,
+  projectId: string
+): Promise<string> {
+  const { data: existing } = await supabase
+    .from("epics")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("is_generic", true)
+    .maybeSingle();
+  if (existing) return existing.id as string;
+
+  const { count } = await supabase
+    .from("epics")
+    .select("*", { count: "exact", head: true })
+    .eq("project_id", projectId);
+
+  const { data: created, error } = await supabase
+    .from("epics")
+    .insert({
+      project_id: projectId,
+      title: "Generica",
+      status: "todo",
+      position: count ?? 0,
+      is_generic: true,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return created.id as string;
+}
+
+/**
+ * Sposta in blocco tutti i task del progetto rimasti senza epica (epic_id
+ * null) nell'epica generica, creandola al bisogno. Azione richiamata dal
+ * bottone "Sistema task senza epica" vicino a "Nuova epica".
+ */
+export async function migrateOrphanTasksToGenericEpic(
+  projectId: string
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const supabase = await createSupabaseServerClient();
+
+  const genericEpicId = await ensureGenericEpic(supabase, projectId);
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ epic_id: genericEpicId })
+    .eq("project_id", projectId)
+    .is("epic_id", null)
+    .select("id");
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true, count: data?.length ?? 0 };
+}
+
 // ----------------------------------------------------------------
 // Tasks
 // ----------------------------------------------------------------
@@ -444,9 +574,12 @@ export async function createTask(
   const type = (String(formData.get("type") ?? "feature") || "feature") as TaskType;
   const isCross = formData.get("is_cross_functional") === "true";
   const crossProjectIds = parseCrossProjectIds(formData, projectId);
-  const epicId = String(formData.get("epic_id") ?? "").trim() || null;
+  const rawEpicId = String(formData.get("epic_id") ?? "").trim() || null;
 
   const supabase = await createSupabaseServerClient();
+
+  // Nessuna epica scelta: finisce nell'epica generica invece di restare orfano.
+  const epicId = rawEpicId ?? (await ensureGenericEpic(supabase, projectId));
 
   // 1. Crea il task (senza status — lo status vive nella junction)
   const { data, error } = await supabase
@@ -580,7 +713,7 @@ export async function createTaskFromHome(
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
-  const epicId = firstEpic?.id ?? null;
+  const epicId = firstEpic?.id ?? (await ensureGenericEpic(supabase, primaryProjectId));
 
   const { data, error } = await supabase
     .from("tasks")

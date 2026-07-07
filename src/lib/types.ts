@@ -54,6 +54,8 @@ export interface Epic {
   description: string | null;
   status: EpicStatus;
   position: number;
+  /** true per l'unica epica "contenitore" auto-generata per i task senza epica assegnata */
+  is_generic: boolean;
   created_at: string;
   updated_at: string;
 }

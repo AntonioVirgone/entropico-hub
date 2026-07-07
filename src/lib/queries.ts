@@ -232,6 +232,23 @@ export async function getEpics(projectId: string): Promise<EpicWithCounts[]> {
 }
 
 /**
+ * Conta i task del progetto rimasti senza epica assegnata (epic_id null).
+ * Usata per mostrare/nascondere il bottone che li sposta in blocco
+ * nell'epica generica.
+ */
+export async function getOrphanTaskCount(projectId: string): Promise<number> {
+  const supabase = await createSupabaseServerClient();
+  const { count, error } = await supabase
+    .from("tasks")
+    .select("*", { count: "exact", head: true })
+    .eq("project_id", projectId)
+    .is("epic_id", null);
+
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/**
  * Restituisce una singola epica per id, o null se non trovata.
  */
 export async function getEpic(epicId: string): Promise<Epic | null> {

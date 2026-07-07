@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { authenticateApiRequest, projectBelongsToUser } from "@/lib/api-auth";
+import { ensureGenericEpic } from "@/lib/actions";
 import type { TaskPriority, TaskStatus, TaskType } from "@/lib/types";
 
 function json(body: unknown, status = 200) {
@@ -111,10 +112,14 @@ export async function POST(
   const TYPES = ["feature", "bug", "analysis"];
   const type = TYPES.includes(String(body.type)) ? (body.type as TaskType) : "feature";
 
+  // Nessuna epica specificata dal chiamante: usa l'epica generica del progetto
+  // così il task non resta orfano (epic_id null) e invisibile ai conteggi.
+  const epicId = await ensureGenericEpic(supabase, projectId);
+
   // 1. Crea il task
   const { data: task, error: e1 } = await supabase
     .from("tasks")
-    .insert({ project_id: projectId, title, description, notes, priority, type, is_cross_functional: false })
+    .insert({ project_id: projectId, title, description, notes, priority, type, is_cross_functional: false, epic_id: epicId })
     .select("id")
     .single();
 
