@@ -21,7 +21,7 @@ export function buildEntropicoInstructions(input: {
   projectName: string;
   appUrl: string | null;
 }): string {
-  const base = input.appUrl ?? "https://LA-TUA-APP";
+  const base = input.appUrl ?? "https://entropico-hub.vercel.app/";
 
   return [
     "# Entropico — API per epiche e task",

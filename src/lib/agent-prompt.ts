@@ -67,7 +67,7 @@ function objectiveFor(type: TaskType): string {
  */
 function taskApiSection(input: AgentPromptInput): string {
   const { task, project, appUrl } = input;
-  const base = appUrl ?? "https://LA-TUA-APP";
+  const base = appUrl ?? "https://entropico-hub.vercel.app/";
 
   return [
     "── API GESTIONE TASK (opzionale, mentre lavori) ──",
